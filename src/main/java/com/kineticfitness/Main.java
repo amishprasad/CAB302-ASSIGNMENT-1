@@ -14,7 +14,8 @@ import javafx.stage.Stage;
  * This is a minimal starting window so the whole team has a build that runs.
  * Feature owners will replace this with the real dashboard and screens.
  */
-public class Main extends Application {
+public class
+Main extends Application {
 
     @Override
     public void start(Stage stage) {
