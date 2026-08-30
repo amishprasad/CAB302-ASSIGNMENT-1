@@ -1,5 +1,6 @@
 package com.kineticfitness;
 
+import com.kineticfitness.view.CreateProfileView;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -9,13 +10,8 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-/**
- * Entry point for the Kinetic Fitness desktop app.
- * This is a minimal starting window so the whole team has a build that runs.
- * Feature owners will replace this with the real dashboard and screens.
- */
-public class
-Main extends Application {
+
+public class Main extends Application {
 
     @Override
     public void start(Stage stage) {
@@ -26,7 +22,10 @@ Main extends Application {
         Button button = new Button("Test me");
         button.setOnAction(e -> status.setText("It works. Start building features on your branch."));
 
-        VBox root = new VBox(12, title, status, button);
+        Button createProfileButton = new Button("Open: Create Profile");
+        createProfileButton.setOnAction(e -> new CreateProfileView(stage).show());
+
+        VBox root = new VBox(12, title, status, button, createProfileButton);
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(40));
 
