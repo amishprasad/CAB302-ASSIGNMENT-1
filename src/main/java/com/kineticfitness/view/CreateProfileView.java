@@ -1,17 +1,25 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.model.FitnessLevel;
+import com.kineticfitness.model.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.util.function.Consumer;
 
 public class CreateProfileView {
 
     private final Stage stage;
+    private final Runnable onBack;
+    private final Consumer<User> onProfileCreated;
 
     // Form fields
     private final TextField nameField = new TextField();
@@ -22,7 +30,13 @@ public class CreateProfileView {
     private final Label errorLabel = new Label();
 
     public CreateProfileView(Stage stage) {
+        this(stage, null, null);
+    }
+
+    public CreateProfileView(Stage stage, Runnable onBack, Consumer<User> onProfileCreated) {
         this.stage = stage;
+        this.onBack = onBack;
+        this.onProfileCreated = onProfileCreated;
     }
 
     public void show() {
@@ -47,7 +61,13 @@ public class CreateProfileView {
 
         root.getChildren().addAll(title, subtitle, form, errorLabel, createButton);
 
-        Scene scene = new Scene(root, 420, 480);
+        if (onBack != null) {
+            Button backButton = new Button("Back to menu");
+            backButton.setOnAction(e -> onBack.run());
+            root.getChildren().add(backButton);
+        }
+
+        Scene scene = new Scene(root, 420, 520);
         stage.setTitle("Kinetic Fitness - Create Profile");
         stage.setScene(scene);
         stage.show();
@@ -83,7 +103,6 @@ public class CreateProfileView {
         return grid;
     }
 
-
     private void handleCreateProfile() {
         String name = nameField.getText().trim();
         String ageText = ageField.getText().trim();
@@ -109,16 +128,68 @@ public class CreateProfileView {
 
             errorLabel.setVisible(false);
 
-            // TODO: replace with real persistence, e.g.
-            // UserProfile profile = new UserProfile(name, age, height, weight, fitnessLevel);
-            // new UserProfileDAO().save(profile);
-            System.out.printf(
-                    "Profile created: name=%s, age=%d, height=%.1fcm, weight=%.1fkg, level=%s%n",
-                    name, age, height, weight, fitnessLevel);
+            User user = new User(
+                    name,
+                    FitnessLevel.valueOf(fitnessLevel.toUpperCase()),
+                    age, height, weight);
+
+            if (onProfileCreated != null) {
+                onProfileCreated.accept(user);
+            }
+
+            showConfirmation(user);
 
         } catch (NumberFormatException ex) {
             showError("Age, height and weight must be valid numbers.");
         }
+    }
+
+    private void showConfirmation(User user) {
+        VBox root = new VBox(14);
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(40));
+
+        Label heading = new Label("Profile created ✓");
+        heading.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        Label details = new Label(String.format(
+                "%s  -  %s%nAge %d  |  %.0f cm  |  %.1f kg",
+                user.getUsername(),
+                displayLevel(user.getFitnessLevel()),
+                user.getAge(), user.getHeightCm(), user.getWeightKg()));
+        details.setStyle("-fx-text-fill: gray;");
+
+        Label bmi = new Label(String.format(
+                "BMI: %.1f  (%s)", user.getBmi(), bmiCategory(user.getBmi())));
+        bmi.setStyle("-fx-font-weight: bold;");
+
+        root.getChildren().addAll(heading, details, bmi);
+
+        if (onBack != null) {
+            Button menuButton = new Button("Back to menu");
+            menuButton.setOnAction(e -> onBack.run());
+            root.getChildren().add(menuButton);
+        } else {
+            Button editButton = new Button("Edit profile");
+            editButton.setOnAction(e -> show());
+            root.getChildren().add(editButton);
+        }
+
+        Scene scene = new Scene(root, 420, 320);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    private String displayLevel(FitnessLevel level) {
+        String name = level.name().toLowerCase();
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+    }
+
+    private String bmiCategory(double bmi) {
+        if (bmi < 18.5) return "underweight";
+        if (bmi < 25) return "healthy";
+        if (bmi < 30) return "overweight";
+        return "obese";
     }
 
     private void showError(String message) {

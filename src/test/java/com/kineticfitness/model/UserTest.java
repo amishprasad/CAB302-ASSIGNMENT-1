@@ -27,4 +27,25 @@ class UserTest {
         user.setFitnessLevel(FitnessLevel.ADVANCED);
         assertEquals(FitnessLevel.ADVANCED, user.getFitnessLevel());
     }
+
+    @Test
+    void profileConstructorStoresDetails() {
+        User user = new User("abin", FitnessLevel.INTERMEDIATE, 27, 180, 81);
+        assertEquals(27, user.getAge());
+        assertEquals(180, user.getHeightCm(), 0.001);
+        assertEquals(81, user.getWeightKg(), 0.001);
+    }
+
+    @Test
+    void bmiIsCalculatedFromHeightAndWeight() {
+        // 81 / (1.80 * 1.80) == 25.0
+        User user = new User("abin", FitnessLevel.INTERMEDIATE, 27, 180, 81);
+        assertEquals(25.0, user.getBmi(), 0.001);
+    }
+
+    @Test
+    void bmiIsZeroWhenHeightNotSet() {
+        User user = new User("abin", FitnessLevel.BEGINNER);
+        assertEquals(0.0, user.getBmi(), 0.001);
+    }
 }
