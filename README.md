@@ -1,24 +1,22 @@
-# Kinetic Fitness — Early Prototype
+# Kinetic Fitness — Basic App Prototype (Windowed)
 
-This is a **very early, console-based prototype** of the Kinetic Fitness desktop application. It exists to prove out the core data model and "Must have" feature logic before any GUI, persistence, or AI work begins.
+This is a **very early, GUI-based prototype** of the Kinetic Fitness desktop application, built with Java Swing. Its only purpose is to demonstrate a working window with sidebar navigation between the app's planned screens.
 
 ## What this prototype includes
 
-Only the **Must have** features from the project's feature table are implemented:
-
-- Enter fitness level and set a goal (currently weekly session target)
-- Realistic goal suggestion based on stated fitness level
-- Log workouts, steps, sets, and reps (user-inputted)
-- Progress summarised into a simple visual (ASCII bar graph)
+- A real desktop window (Swing) that opens on launch
+- A sidebar with 5 navigation buttons: **Dashboard, Goals, Workout Log, Progress, Profile**
+- Clicking a sidebar button switches the visible screen (CardLayout) — no page reload, just an in-app view swap
+- Each screen has placeholder layout/fields reflecting a "Must have" feature area, so the shape of the app is visible even though nothing is functional yet
 
 ## What this prototype does NOT include (yet)
 
-- No GUI — this is a console/CLI app only
-- No data persistence — all data resets when the app closes
-- No AI recommendations, chatbot, dashboard, wearable sync, gamification, or any Should/Could-have features
+- **No backend logic** — form fields and buttons don't save, calculate, or persist anything. Buttons like "Save Goal" and "Log Workout" just show a placeholder dialog confirming they're not wired up yet.
+- No data persistence — nothing survives closing the app
+- No AI recommendations, chatbot, dashboard metrics, wearable sync, gamification, or any Should/Could-have features
 - No automated test suite yet
 
-These are intentionally out of scope for this first commit and will be layered in incrementally.
+This is intentional — the goal of this commit is *only* to prove the window shell and navigation work, before any real logic is added.
 
 ## Project structure
 
@@ -32,20 +30,20 @@ kinetic-fitness/
         └── java/
             └── com/
                 └── kineticfitness/
-                    ├── Main.java                # CLI entry point
-                    ├── model/
-                    │   ├── FitnessLevel.java
-                    │   ├── GoalTimeframe.java
-                    │   ├── Goal.java
-                    │   ├── Workout.java
-                    │   └── User.java
-                    └── service/
-                        └── FitnessTracker.java  # Core logic (goal suggestions, progress graph)
+                    ├── Main.java                 # Entry point — launches the GUI
+                    └── ui/
+                        ├── MainFrame.java         # Main window: sidebar + CardLayout content area
+                        ├── NavigationPanel.java   # Sidebar buttons
+                        ├── DashboardPanel.java    # Placeholder screen
+                        ├── GoalsPanel.java        # Placeholder screen
+                        ├── WorkoutLogPanel.java   # Placeholder screen
+                        ├── ProgressPanel.java     # Placeholder screen
+                        └── ProfilePanel.java      # Placeholder screen
 ```
 
 ## Requirements
 
-- Java 17 or later (JDK, not just JRE)
+- Java 17 or later (a full JDK with GUI/AWT support — not a headless-only JDK)
 - Maven (optional — plain `javac` works fine too)
 
 ## Running it
@@ -71,45 +69,16 @@ mvn package
 java -jar target/kinetic-fitness.jar
 ```
 
-## Example session
+A window titled **"Kinetic Fitness (Prototype)"** should open with a dark sidebar on the left and a content area on the right. Click any sidebar button to switch screens.
 
-```
-=== Welcome to Kinetic Fitness (Prototype) ===
-Enter your name: Maya
-Enter your fitness level (BEGINNER, INTERMEDIATE, ADVANCED): INTERMEDIATE
-
-Based on your fitness level (INTERMEDIATE), a realistic weekly target is 4 session(s).
-Set your weekly session goal (press Enter to accept suggestion of 4):
-
---- Menu ---
-1. Log a workout
-2. View progress summary
-3. Exit
-Choose an option: 1
-Activity type (e.g. Run, Strength, Steps): Run
-Sets (0 if not applicable): 0
-Reps (0 if not applicable): 0
-Steps (0 if not applicable): 3000
-Duration in minutes: 25
-Logged: 2026-09-06 | Run | sets=0 reps=0 steps=3000 duration=25min
-
---- Menu ---
-1. Log a workout
-2. View progress summary
-3. Exit
-Choose an option: 2
-
---- Progress Summary for Maya ---
-WEEKLY     General activity     [#####---------------] 1/4
-Total workouts logged: 1
-```
+> Note: this was built and compile-verified in a headless CI-style environment, so it hasn't been visually screenshotted — but it uses only standard Swing components, so it will render normally on any machine with a standard desktop JDK.
 
 ## Roadmap (next steps, not yet built)
 
-1. Swap console I/O for a real desktop GUI (JavaFX or Swing)
+1. Wire up real logic behind the Goals and Workout Log forms (currently just UI placeholders)
 2. Add persistence (local file or embedded DB) so data survives restarts
-3. Support multiple concurrent goals per timeframe (daily/weekly/monthly/annual), not just one
-4. Build out Should-have features: user profiles, activity reminders, visual reports, dashboard/homepage, FAQ/help page, AI recommendations, chatbot
+3. Make the Dashboard and Progress screens reflect real user data instead of static placeholders
+4. Build out Should-have features: user profiles, activity reminders, visual reports, FAQ/help page, AI recommendations, chatbot
 5. Layer in Could-have features once the above are stable: gamification, wearable sync, calorie tracking, offline mode, etc.
 
 ## License
