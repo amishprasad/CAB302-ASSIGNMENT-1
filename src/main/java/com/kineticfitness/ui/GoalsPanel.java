@@ -5,8 +5,6 @@ import java.awt.*;
 
 /**
  * Placeholder goal-setting screen.
- * The form fields are for layout/navigation purposes only — nothing
- * is saved or processed yet. That logic comes in a later iteration.
  */
 public class GoalsPanel extends JPanel {
 
@@ -47,7 +45,7 @@ public class GoalsPanel extends JPanel {
         JButton saveButton = new JButton("Save Goal (not yet functional)");
         saveButton.addActionListener(e ->
                 JOptionPane.showMessageDialog(this,
-                        "This is a UI placeholder — goal saving isn't wired up yet.",
+                        "This is supposed to do something",
                         "Prototype", JOptionPane.INFORMATION_MESSAGE));
         form.add(saveButton, gbc);
 

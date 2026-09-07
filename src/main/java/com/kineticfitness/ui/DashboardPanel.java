@@ -5,7 +5,6 @@ import java.awt.*;
 
 /**
  * Placeholder homepage/dashboard screen.
- * Static content only — no real data or logic yet.
  */
 public class DashboardPanel extends JPanel {
 

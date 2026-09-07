@@ -5,7 +5,6 @@ import java.awt.*;
 
 /**
  * Placeholder workout logging screen.
- * Layout only — fields are not wired to any storage or logic yet.
  */
 public class WorkoutLogPanel extends JPanel {
 
@@ -42,7 +41,7 @@ public class WorkoutLogPanel extends JPanel {
         JButton logButton = new JButton("Log Workout (not yet functional)");
         logButton.addActionListener(e ->
                 JOptionPane.showMessageDialog(this,
-                        "This is a UI placeholder — workout logging isn't wired up yet.",
+                        "This is a UI placeholder",
                         "Prototype", JOptionPane.INFORMATION_MESSAGE));
         form.add(logButton, gbc);
 

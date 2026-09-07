@@ -5,8 +5,6 @@ import java.awt.*;
 
 /**
  * Placeholder progress screen.
- * Shows a static example progress bar just to demonstrate layout —
- * no real data is calculated yet.
  */
 public class ProgressPanel extends JPanel {
 

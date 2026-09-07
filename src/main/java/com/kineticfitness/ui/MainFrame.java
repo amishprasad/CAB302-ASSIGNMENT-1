@@ -5,8 +5,6 @@ import java.awt.*;
 
 /**
  * The main application window.
- * Uses a CardLayout content area on the right and a sidebar of
- * navigation buttons on the left, similar to most desktop app shells.
  */
 public class MainFrame extends JFrame {
 

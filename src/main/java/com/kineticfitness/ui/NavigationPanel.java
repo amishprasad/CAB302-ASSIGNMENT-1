@@ -5,8 +5,6 @@ import java.awt.*;
 
 /**
  * Left-hand sidebar with a button per screen.
- * Purely navigational — clicking a button just tells MainFrame
- * which card to show. No logic beyond that.
  */
 public class NavigationPanel extends JPanel {
 
