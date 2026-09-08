@@ -4,6 +4,7 @@ import com.kineticfitness.model.User;
 import com.kineticfitness.view.CreateProfileView;
 import com.kineticfitness.view.GoalsView;
 import com.kineticfitness.view.LogWorkoutView;
+import com.kineticfitness.view.WorkoutHistoryView;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -44,11 +45,17 @@ public class Main extends Application {
         goalsButton.setOnAction(e ->
                 new GoalsView(stage, this::showMainMenu).show());
 
-        for (Button button : new Button[]{createProfileButton, logWorkoutButton, goalsButton}) {
+        Button workoutHistoryButton = new Button("Workout History");
+        workoutHistoryButton.setOnAction(e ->
+                new WorkoutHistoryView(stage, this::showMainMenu).show());
+
+        for (Button button : new Button[]{createProfileButton, logWorkoutButton,
+                goalsButton, workoutHistoryButton}) {
             button.setMaxWidth(220);
         }
 
-        VBox root = new VBox(12, title, status, createProfileButton, logWorkoutButton, goalsButton);
+        VBox root = new VBox(12, title, status, createProfileButton, logWorkoutButton,
+                goalsButton, workoutHistoryButton);
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(40));
 
