@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 public class CreateProfileView {
 
     private final Stage stage;
+    private final User existingUser;
     private final Runnable onBack;
     private final Consumer<User> onProfileCreated;
 
@@ -30,11 +31,16 @@ public class CreateProfileView {
     private final Label errorLabel = new Label();
 
     public CreateProfileView(Stage stage) {
-        this(stage, null, null);
+        this(stage, null, null, null);
     }
 
     public CreateProfileView(Stage stage, Runnable onBack, Consumer<User> onProfileCreated) {
+        this(stage, null, onBack, onProfileCreated);
+    }
+
+    public CreateProfileView(Stage stage, User existingUser, Runnable onBack, Consumer<User> onProfileCreated) {
         this.stage = stage;
+        this.existingUser = existingUser;
         this.onBack = onBack;
         this.onProfileCreated = onProfileCreated;
     }
@@ -44,10 +50,11 @@ public class CreateProfileView {
         root.setAlignment(Pos.TOP_CENTER);
         root.setPadding(new Insets(32));
 
-        Label title = new Label("Create your profile");
+        boolean isEdit = existingUser != null;
+        Label title = new Label(isEdit ? "Edit your profile" : "Create your profile");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
 
-        Label subtitle = new Label("Tell us about yourself so we can personalise your plan.");
+        Label subtitle = new Label(isEdit ? "Update your details below." : "Tell us about yourself so we can personalise your plan.");
         subtitle.setStyle("-fx-text-fill: gray;");
 
         GridPane form = buildForm();
@@ -55,11 +62,11 @@ public class CreateProfileView {
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
         errorLabel.setVisible(false);
 
-        Button createButton = new Button("Create profile");
-        createButton.setMaxWidth(Double.MAX_VALUE);
-        createButton.setOnAction(e -> handleCreateProfile());
+        Button actionButton = new Button(isEdit ? "Save changes" : "Create profile");
+        actionButton.setMaxWidth(Double.MAX_VALUE);
+        actionButton.setOnAction(e -> handleCreateProfile());
 
-        root.getChildren().addAll(title, subtitle, form, errorLabel, createButton);
+        root.getChildren().addAll(title, subtitle, form, errorLabel, actionButton);
 
         if (onBack != null) {
             Button backButton = new Button("Back to menu");
@@ -68,7 +75,7 @@ public class CreateProfileView {
         }
 
         Scene scene = new Scene(root, 420, 520);
-        stage.setTitle("Kinetic Fitness - Create Profile");
+        stage.setTitle(isEdit ? "Kinetic Fitness - Edit Profile" : "Kinetic Fitness - Create Profile");
         stage.setScene(scene);
         stage.show();
     }
@@ -86,6 +93,16 @@ public class CreateProfileView {
         fitnessLevelBox.getItems().addAll("Beginner", "Intermediate", "Advanced");
         fitnessLevelBox.setPromptText("Select level");
         fitnessLevelBox.setMaxWidth(Double.MAX_VALUE);
+
+        if (existingUser != null) {
+            nameField.setText(existingUser.getUsername());
+            if (existingUser.getAge() > 0) ageField.setText(String.valueOf(existingUser.getAge()));
+            if (existingUser.getHeightCm() > 0) heightField.setText(String.valueOf((int) existingUser.getHeightCm()));
+            if (existingUser.getWeightKg() > 0) weightField.setText(String.valueOf(existingUser.getWeightKg()));
+            if (existingUser.getFitnessLevel() != null) {
+                fitnessLevelBox.setValue(displayLevel(existingUser.getFitnessLevel()));
+            }
+        }
 
         grid.add(new Label("First name"), 0, 0);
         grid.add(nameField, 0, 1, 2, 1);
@@ -128,10 +145,20 @@ public class CreateProfileView {
 
             errorLabel.setVisible(false);
 
-            User user = new User(
-                    name,
-                    FitnessLevel.valueOf(fitnessLevel.toUpperCase()),
-                    age, height, weight);
+            User user;
+            if (existingUser != null) {
+                existingUser.setUsername(name);
+                existingUser.setFitnessLevel(FitnessLevel.valueOf(fitnessLevel.toUpperCase()));
+                existingUser.setAge(age);
+                existingUser.setHeightCm(height);
+                existingUser.setWeightKg(weight);
+                user = existingUser;
+            } else {
+                user = new User(
+                        name,
+                        FitnessLevel.valueOf(fitnessLevel.toUpperCase()),
+                        age, height, weight);
+            }
 
             if (onProfileCreated != null) {
                 onProfileCreated.accept(user);
@@ -149,7 +176,8 @@ public class CreateProfileView {
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(40));
 
-        Label heading = new Label("Profile created ✓");
+        boolean isEdit = existingUser != null;
+        Label heading = new Label(isEdit ? "Profile updated ✓" : "Profile created ✓");
         heading.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
 
         Label details = new Label(String.format(
@@ -160,7 +188,7 @@ public class CreateProfileView {
         details.setStyle("-fx-text-fill: gray;");
 
         Label bmi = new Label(String.format(
-                "BMI: %.1f  (%s)", user.getBmi(), bmiCategory(user.getBmi())));
+                "BMI: %.1f  (%s)", user.getBmi(), user.getBmiCategory()));
         bmi.setStyle("-fx-font-weight: bold;");
 
         root.getChildren().addAll(heading, details, bmi);
@@ -185,15 +213,9 @@ public class CreateProfileView {
         return Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 
-    private String bmiCategory(double bmi) {
-        if (bmi < 18.5) return "underweight";
-        if (bmi < 25) return "healthy";
-        if (bmi < 30) return "overweight";
-        return "obese";
-    }
-
     private void showError(String message) {
         errorLabel.setText(message);
         errorLabel.setVisible(true);
     }
 }
+

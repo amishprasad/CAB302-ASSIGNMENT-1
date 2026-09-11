@@ -49,9 +49,32 @@ public class User {
         return weightKg / (heightM * heightM);
     }
 
+    /**
+     * Standard WHO classification of Body Mass Index.
+     */
+    public String getBmiCategory() {
+        double bmi = getBmi();
+        if (bmi <= 0) return "Unknown";
+        if (bmi < 18.5) return "Underweight";
+        if (bmi < 25.0) return "Healthy weight";
+        if (bmi < 30.0) return "Overweight";
+        return "Obese";
+    }
+
     public List<Workout> getWorkouts() { return workouts; }
     public void addWorkout(Workout workout) { workouts.add(workout); }
 
+    /** Total repetitions summed across all logged workouts. */
+    public int getTotalRepsAllWorkouts() {
+        return workouts.stream().mapToInt(Workout::totalReps).sum();
+    }
+
     public List<Goal> getGoals() { return goals; }
     public void addGoal(Goal goal) { goals.add(goal); }
+
+    /** Number of goals currently achieved. */
+    public int getAchievedGoalsCount() {
+        return (int) goals.stream().filter(Goal::isAchieved).count();
+    }
 }
+

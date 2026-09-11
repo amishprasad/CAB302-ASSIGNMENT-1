@@ -1,6 +1,7 @@
 package com.kineticfitness.view;
 
 import com.kineticfitness.model.Goal;
+import com.kineticfitness.model.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -21,6 +22,7 @@ import javafx.stage.Stage;
 public class GoalsView {
 
     private final Stage stage;
+    private final User user;
     private final Runnable onBack;
 
     private final TextField descriptionField = new TextField();
@@ -36,11 +38,16 @@ public class GoalsView {
     private final Button logProgressButton = new Button("Log progress");
 
     public GoalsView(Stage stage) {
-        this(stage, null);
+        this(stage, null, null);
     }
 
     public GoalsView(Stage stage, Runnable onBack) {
+        this(stage, null, onBack);
+    }
+
+    public GoalsView(Stage stage, User user, Runnable onBack) {
         this.stage = stage;
+        this.user = user;
         this.onBack = onBack;
     }
 
@@ -51,6 +58,9 @@ public class GoalsView {
 
         Label title = new Label("Your goals");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        Label subtitle = new Label(user != null ? "Tracking goals for " + user.getUsername() : "Set targets and track your milestones.");
+        subtitle.setStyle("-fx-text-fill: gray;");
 
         GridPane form = buildForm();
 
@@ -64,7 +74,7 @@ public class GoalsView {
         configureGoalList();
         VBox progressPanel = buildProgressPanel();
 
-        root.getChildren().addAll(title, form, addButton, errorLabel, goalList, progressPanel);
+        root.getChildren().addAll(title, subtitle, form, addButton, errorLabel, goalList, progressPanel);
 
         if (onBack != null) {
             Button backButton = new Button("Back to menu");
@@ -72,7 +82,7 @@ public class GoalsView {
             root.getChildren().add(backButton);
         }
 
-        Scene scene = new Scene(root, 460, 620);
+        Scene scene = new Scene(root, 460, 640);
         stage.setTitle("Kinetic Fitness - Goals");
         stage.setScene(scene);
         stage.show();
@@ -97,6 +107,9 @@ public class GoalsView {
 
     private void configureGoalList() {
         goalList.setPrefHeight(160);
+        if (user != null) {
+            goalList.getItems().setAll(user.getGoals());
+        }
         goalList.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(Goal goal, boolean empty) {
@@ -149,7 +162,11 @@ public class GoalsView {
                 return;
             }
 
-            goalList.getItems().add(new Goal(description, target));
+            Goal newGoal = new Goal(description, target);
+            if (user != null) {
+                user.addGoal(newGoal);
+            }
+            goalList.getItems().add(newGoal);
             errorLabel.setVisible(false);
             descriptionField.clear();
             targetField.clear();
