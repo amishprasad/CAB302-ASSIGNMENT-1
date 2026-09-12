@@ -1,9 +1,6 @@
 package com.kineticfitness;
 
-import com.kineticfitness.view.AppShell;
-import com.kineticfitness.view.PlaceholderPage;
-import com.kineticfitness.view.ScheduleView;
-import com.kineticfitness.view.WorkoutHistoryView;
+import com.kineticfitness.view.*;
 import javafx.application.Application;
 import javafx.stage.Stage;
 
@@ -17,7 +14,7 @@ public class Main extends Application {
         // Each screen implements Page and is registered here. Real pages are plugged in as
         // they're built; the rest show a labelled placeholder so navigation works end to end.
         new AppShell(stage)
-                .add(new PlaceholderPage("Dashboard", "Ebin"))
+                .add(new DashboardView())
                 .add(new PlaceholderPage("Profile", "Adriel"))
                 .add(new PlaceholderPage("Log Workout", "Junxi"))
                 .add(new WorkoutHistoryView())
