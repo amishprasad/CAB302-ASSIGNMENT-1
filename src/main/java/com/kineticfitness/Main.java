@@ -1,13 +1,10 @@
 package com.kineticfitness;
 
-import com.kineticfitness.view.CreateProfileView;
+import com.kineticfitness.view.AppShell;
+import com.kineticfitness.view.PlaceholderPage;
+import com.kineticfitness.view.ScheduleView;
+import com.kineticfitness.view.WorkoutHistoryView;
 import javafx.application.Application;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 
@@ -15,23 +12,19 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) {
-        Label title = new Label("Kinetic Fitness");
-        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
-
-        Label status = new Label("Team skeleton is running.");
-        Button button = new Button("Test me");
-        button.setOnAction(e -> status.setText("It works. Start building features on your branch."));
-
-        Button createProfileButton = new Button("Open: Create Profile");
-        createProfileButton.setOnAction(e -> new CreateProfileView(stage).show());
-
-        VBox root = new VBox(12, title, status, button, createProfileButton);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(40));
-
-        stage.setTitle("Kinetic Fitness");
-        stage.setScene(new Scene(root, 440, 280));
-        stage.show();
+        // The AppShell owns the window + sidebar and swaps the centre content per page.
+        // Each screen implements Page and is registered here. Real pages are plugged in as
+        // they're built; the rest show a labelled placeholder so navigation works end to end.
+        new AppShell(stage)
+                .add(new PlaceholderPage("Dashboard", "Ebin"))
+                .add(new PlaceholderPage("Profile", "Adriel"))
+                .add(new PlaceholderPage("Log Workout", "Junxi"))
+                .add(new WorkoutHistoryView())
+                .add(new PlaceholderPage("Goals", ""))
+                .add(new PlaceholderPage("Progress", "amish"))
+                .add(new ScheduleView())
+                .add(new PlaceholderPage("Settings", "amish"))
+                .show();
     }
 
     public static void main(String[] args) {
