@@ -18,6 +18,7 @@ public class Main extends Application {
                 .add(new PlaceholderPage("Profile", "Adriel"))
                 .add(new PlaceholderPage("Log Workout", "Junxi"))
                 .add(new WorkoutHistoryView())
+                .add(new ExerciseSelectionView())
                 .add(new PlaceholderPage("Goals", ""))
                 .add(new PlaceholderPage("Progress", "amish"))
                 .add(new ScheduleView())
