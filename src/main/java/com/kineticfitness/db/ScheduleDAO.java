@@ -44,7 +44,7 @@ public class ScheduleDAO {
         Connection connection = DatabaseConnection.getInstance();
 
         String sql = """
-            SELECT s.workout_name, s.workout_date, s.start_time, s.duration
+            SELECT s.id, s.workout_name, s.workout_date, s.start_time, s.duration
             FROM scheduled_workouts s
             JOIN users u ON s.user_id = u.id
             WHERE u.username = ?
@@ -55,16 +55,26 @@ public class ScheduleDAO {
             ResultSet rs = statement.executeQuery();
             while (rs.next()) {
                 results.add(new ScheduledWorkout(
+                        rs.getInt("id"),
                         rs.getString("workout_name"),
                         rs.getString("workout_date"),
                         rs.getString("start_time"),
-                        rs.getString("duration")
-                ));
+                        rs.getString("duration")));
             }
         } catch (SQLException e) {
             System.err.println("Failed to load scheduled workouts: " + e.getMessage());
         }
-
         return results;
+    }
+
+    public void delete(int id) {
+        Connection connection = DatabaseConnection.getInstance();
+        String sql = "DELETE FROM scheduled_workouts WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, id);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to delete scheduled workout: " + e.getMessage());
+        }
     }
 }

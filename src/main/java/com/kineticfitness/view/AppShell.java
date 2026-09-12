@@ -36,7 +36,6 @@ public class AppShell {
     private final BorderPane root = new BorderPane();
     private final List<Page> pages = new ArrayList<>();
     private final Map<String, Button> navButtons = new LinkedHashMap<>();
-    private final Map<String, Node> contentCache = new LinkedHashMap<>();
 
     public AppShell(Stage stage) {
         this.stage = stage;
@@ -103,15 +102,12 @@ public class AppShell {
     }
 
     private void navigate(String label) {
-        Node content = contentCache.get(label);
-        if (content == null) {
-            for (Page page : pages) {
-                if (page.label().equals(label)) {
-                    content = page.getContent();
-                    break;
-                }
+        Node content = null;
+        for (Page page : pages) {
+            if (page.label().equals(label)) {
+                content = page.getContent();
+                break;
             }
-            contentCache.put(label, content);
         }
         root.setCenter(content);
         for (Map.Entry<String, Button> entry : navButtons.entrySet()) {

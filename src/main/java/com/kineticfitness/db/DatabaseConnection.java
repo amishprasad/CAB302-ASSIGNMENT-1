@@ -7,17 +7,27 @@ import java.sql.Statement;
 
 public class DatabaseConnection {
 
-    private static final String URL = "jdbc:sqlite:kineticfitness.db";
+    private static String url = "jdbc:sqlite:kineticfitness.db";
     private static Connection instance = null;
 
-    private DatabaseConnection() {
-        // prevent instantiation
+    /** For tests: point at a different database (e.g. "jdbc:sqlite::memory:"). Call before getInstance(). */
+    public static void configure(String customUrl) {
+        reset();
+        url = customUrl;
+    }
+
+    /** Closes the current connection so the next getInstance() opens a fresh one. */
+    public static void reset() {
+        if (instance != null) {
+            try { instance.close(); } catch (SQLException ignored) {}
+            instance = null;
+        }
     }
 
     public static Connection getInstance() {
         if (instance == null) {
             try {
-                instance = DriverManager.getConnection(URL);
+                instance = DriverManager.getConnection(url);   // note: url, not URL
                 createTables(instance);
             } catch (SQLException e) {
                 System.err.println("Failed to connect to database: " + e.getMessage());

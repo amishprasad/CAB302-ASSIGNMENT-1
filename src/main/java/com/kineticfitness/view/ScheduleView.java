@@ -1,5 +1,8 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.db.ScheduleDAO;
+import com.kineticfitness.model.ScheduledWorkout;
+import com.kineticfitness.session.UserSession;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -11,13 +14,12 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Workout Schedule page: plan a workout via a form, and see upcoming workouts in a list
- * where each can be Completed, Skipped, or Rescheduled. Implements {@link Page} so it
- * plugs into the {@link AppShell}. Matches the Kinetic Fitness Figma design.
+ * Workout Schedule page: plan a workout via a form and see upcoming workouts, each of which
+ * can be Completed, Skipped, or Rescheduled. Reads/writes through {@link ScheduleDAO} so the
+ * schedule persists across sessions for the logged-in user.
  */
 public class ScheduleView implements Page {
 
@@ -28,11 +30,7 @@ public class ScheduleView implements Page {
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 10;"
             + " -fx-border-color: #E2E8F0; -fx-border-radius: 10;";
 
-    private final List<Item> upcoming = new ArrayList<>(List.of(
-            new Item("Full Body Push Routine", "02 Sep 2026", "08:00 AM", "60 mins"),
-            new Item("Leg Hypertrophy Focus", "04 Sep 2026", "06:30 PM", "75 mins"),
-            new Item("Deadlift Max Strength", "06 Sep 2026", "07:00 AM", "45 mins"),
-            new Item("Upper Body Pull Progression", "08 Sep 2026", "06:00 PM", "90 mins")));
+    private final ScheduleDAO scheduleDAO = new ScheduleDAO();
 
     private final TextField nameField = new TextField();
     private final TextField dateField = new TextField();
@@ -118,6 +116,11 @@ public class ScheduleView implements Page {
     }
 
     private void handleSave() {
+        if (!UserSession.isLoggedIn()) {
+            showError("Create a profile first before scheduling a workout.");
+            return;
+        }
+
         String name = nameField.getText().trim();
         String date = dateField.getText().trim();
         String time = timeField.getText().trim();
@@ -129,7 +132,11 @@ public class ScheduleView implements Page {
         }
 
         errorLabel.setVisible(false);
-        upcoming.add(new Item(name, date, time, duration.endsWith("mins") ? duration : duration + " mins"));
+        scheduleDAO.save(
+                UserSession.getCurrentUser().getUsername(),
+                new ScheduledWorkout(name, date, time,
+                        duration.endsWith("mins") ? duration : duration + " mins"));
+
         nameField.clear();
         dateField.clear();
         timeField.clear();
@@ -149,52 +156,51 @@ public class ScheduleView implements Page {
 
     private void refreshRows() {
         rows.getChildren().clear();
-        if (upcoming.isEmpty()) {
-            Label empty = new Label("No upcoming workouts scheduled.");
-            empty.setStyle("-fx-text-fill: " + SUBTITLE + "; -fx-padding: 12 0 0 0;");
-            rows.getChildren().add(empty);
+
+        if (!UserSession.isLoggedIn()) {
+            rows.getChildren().add(hint("Create a profile to start scheduling workouts."));
             return;
         }
-        for (Item item : upcoming) {
+
+        List<ScheduledWorkout> upcoming =
+                scheduleDAO.findForUser(UserSession.getCurrentUser().getUsername());
+
+        if (upcoming.isEmpty()) {
+            rows.getChildren().add(hint("No upcoming workouts scheduled."));
+            return;
+        }
+        for (ScheduledWorkout item : upcoming) {
             rows.getChildren().add(buildRow(item));
         }
     }
 
-    private HBox buildRow(Item item) {
-        Label name = cell(item.name, true);
+    private HBox buildRow(ScheduledWorkout item) {
+        Label name = cell(item.getName(), true);
         name.setStyle("-fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
         Button complete = smallButton("Complete", ORANGE, "white");
-        complete.setOnAction(e -> remove(item));
+        complete.setOnAction(e -> { scheduleDAO.delete(item.getId()); refreshRows(); });
         Button skip = smallButton("Skip", "white", TITLE);
-        skip.setOnAction(e -> remove(item));
+        skip.setOnAction(e -> { scheduleDAO.delete(item.getId()); refreshRows(); });
         Button reschedule = smallButton("Reschedule", "white", TITLE);
-        reschedule.setOnAction(e -> reschedule(item));
+        reschedule.setOnAction(e -> {
+            nameField.setText(item.getName());
+            dateField.setText(item.getDate());
+            timeField.setText(item.getTime());
+            durationField.setText(item.getDuration().replace(" mins", ""));
+            scheduleDAO.delete(item.getId());
+            refreshRows();
+        });
 
         HBox actions = new HBox(6, complete, skip, reschedule);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        HBox row = new HBox(12, name, cell(item.date, false), cell(item.time, false),
-                cell(item.duration, false), actions);
+        HBox row = new HBox(12, name, cell(item.getDate(), false), cell(item.getTime(), false),
+                cell(item.getDuration(), false), actions);
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(10, 0, 10, 0));
         row.setStyle("-fx-border-color: transparent transparent #E2E8F0 transparent;");
         return row;
-    }
-
-    private void remove(Item item) {
-        upcoming.remove(item);
-        refreshRows();
-    }
-
-    private void reschedule(Item item) {
-        // Load the item back into the form so the user can adjust and re-save it.
-        nameField.setText(item.name);
-        dateField.setText(item.date);
-        timeField.setText(item.time);
-        durationField.setText(item.duration.replace(" mins", ""));
-        upcoming.remove(item);
-        refreshRows();
     }
 
     private void showError(String message) {
@@ -203,6 +209,12 @@ public class ScheduleView implements Page {
     }
 
     // ---- small UI helpers -------------------------------------------------
+
+    private Label hint(String text) {
+        Label l = new Label(text);
+        l.setStyle("-fx-text-fill: " + SUBTITLE + "; -fx-padding: 12 0 0 0;");
+        return l;
+    }
 
     private Label fieldLabel(String text) {
         Label l = new Label(text);
@@ -240,20 +252,5 @@ public class ScheduleView implements Page {
                 + " -fx-font-size: 12px; -fx-background-radius: 6; -fx-border-color: #E2E8F0;"
                 + " -fx-border-radius: 6;");
         return b;
-    }
-
-    /** One scheduled workout. */
-    private static class Item {
-        final String name;
-        final String date;
-        final String time;
-        final String duration;
-
-        Item(String name, String date, String time, String duration) {
-            this.name = name;
-            this.date = date;
-            this.time = time;
-            this.duration = duration;
-        }
     }
 }
