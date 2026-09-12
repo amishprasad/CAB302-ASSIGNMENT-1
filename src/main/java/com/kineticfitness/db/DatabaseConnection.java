@@ -43,7 +43,7 @@ public class DatabaseConnection {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     workout_date TEXT NOT NULL,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
+                        FOREIGN KEY (user_id) REFERENCES users(id)
                 )
             """);
             statement.execute("""
@@ -66,6 +66,17 @@ public class DatabaseConnection {
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 )
             """);
+            statement.execute("""
+                CREATE TABLE IF NOT EXISTS scheduled_workouts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    workout_name TEXT NOT NULL,
+                    workout_date TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    duration TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """);
         }
     }
 }
