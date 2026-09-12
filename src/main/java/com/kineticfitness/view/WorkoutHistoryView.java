@@ -4,49 +4,33 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Workout History screen: a dark sidebar of navigation, plus a main panel that
- * lists past training logs in a table and lets the user filter them by muscle group.
- * Built to match the Kinetic Fitness Figma design (1280x800 desktop layout).
+ * Workout History page: lists past training logs in a table and filters them by muscle group.
+ * Implements {@link Page} so it plugs into the {@link AppShell} — the shell provides the
+ * sidebar, this class provides only the centre content.
  */
-public class WorkoutHistoryView {
+public class WorkoutHistoryView implements Page {
 
-    // Palette (from the design)
-    private static final String NAVY = "#0F172A";
-    private static final String NAV_TEXT = "#CBD5E1";
     private static final String ORANGE = "#F97316";
     private static final String CONTENT_BG = "#F1F5F9";
     private static final String TITLE = "#1E293B";
     private static final String SUBTITLE = "#64748B";
 
-    private static final String[] NAV_ITEMS = {
-            "Dashboard", "Profile", "Log Workout", "Workout History",
-            "Schedule", "Goals", "Progress", "Settings"
-    };
-    private static final String ACTIVE_NAV = "Workout History";
-
     private static final String[] FILTERS = {
             "All", "Chest", "Back", "Legs", "Arms", "Shoulders", "Core"
     };
-
-    private final Stage stage;
-    private final Runnable onBack;
 
     private final List<Entry> allEntries = List.of(
             new Entry("30 Aug", "Bench Press", "3", "10", "60 kg", "Chest"),
@@ -58,88 +42,13 @@ public class WorkoutHistoryView {
     private final TableView<Entry> table = new TableView<>();
     private final List<Button> chipButtons = new ArrayList<>();
 
-    public WorkoutHistoryView(Stage stage) {
-        this(stage, null);
+    @Override
+    public String label() {
+        return "Workout History";
     }
 
-    public WorkoutHistoryView(Stage stage, Runnable onBack) {
-        this.stage = stage;
-        this.onBack = onBack;
-    }
-
-    public void show() {
-        BorderPane root = new BorderPane();
-        root.setLeft(buildSidebar());
-        root.setCenter(buildContent());
-
-        Scene scene = new Scene(root, 1280, 800);
-        stage.setTitle("Kinetic Fitness - Workout History");
-        stage.setScene(scene);
-        stage.show();
-    }
-
-    // ---- Sidebar ----------------------------------------------------------
-
-    private VBox buildSidebar() {
-        VBox sidebar = new VBox(6);
-        sidebar.setPrefWidth(240);
-        sidebar.setMinWidth(240);
-        sidebar.setPadding(new Insets(20, 16, 20, 16));
-        sidebar.setStyle("-fx-background-color: " + NAVY + ";");
-
-        // Logo row
-        Region mark = new Region();
-        mark.setMinSize(26, 26);
-        mark.setPrefSize(26, 26);
-        mark.setMaxSize(26, 26);
-        mark.setStyle("-fx-background-color: " + ORANGE + "; -fx-background-radius: 7;");
-
-        Label brand = new Label("Kinetic Fitness");
-        brand.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
-
-        HBox logo = new HBox(10, mark, brand);
-        logo.setAlignment(Pos.CENTER_LEFT);
-        logo.setPadding(new Insets(4, 0, 20, 4));
-
-        VBox nav = new VBox(4);
-        for (String item : NAV_ITEMS) {
-            nav.getChildren().add(buildNavButton(item, item.equals(ACTIVE_NAV)));
-        }
-
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
-
-        Button logout = buildNavButton("Logout", false);
-        if (onBack != null) {
-            logout.setOnAction(e -> onBack.run());
-        }
-
-        sidebar.getChildren().addAll(logo, nav, spacer, logout);
-        return sidebar;
-    }
-
-    private Button buildNavButton(String text, boolean active) {
-        Button b = new Button(text);
-        b.setMaxWidth(Double.MAX_VALUE);
-        b.setAlignment(Pos.CENTER_LEFT);
-        b.setPadding(new Insets(10, 14, 10, 14));
-        if (active) {
-            b.setStyle("-fx-background-color: " + ORANGE + "; -fx-text-fill: white;"
-                    + " -fx-font-weight: bold; -fx-background-radius: 8; -fx-font-size: 13px;");
-        } else {
-            b.setStyle("-fx-background-color: transparent; -fx-text-fill: " + NAV_TEXT + ";"
-                    + " -fx-background-radius: 8; -fx-font-size: 13px;");
-        }
-        return b;
-    }
-
-    // ---- Main content -----------------------------------------------------
-
-    private VBox buildContent() {
-        VBox content = new VBox(16);
-        content.setPadding(new Insets(32, 40, 32, 40));
-        content.setStyle("-fx-background-color: " + CONTENT_BG + ";");
-
+    @Override
+    public Node getContent() {
         Label title = new Label("Workout History");
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
@@ -147,10 +56,11 @@ public class WorkoutHistoryView {
                 "View and filter past training logs to monitor progression over cycles.");
         subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + SUBTITLE + ";");
 
-        HBox filters = buildFilterChips();
         buildTable();
 
-        content.getChildren().addAll(title, subtitle, filters, table);
+        VBox content = new VBox(16, title, subtitle, buildFilterChips(), table);
+        content.setPadding(new Insets(32, 40, 32, 40));
+        content.setStyle("-fx-background-color: " + CONTENT_BG + ";");
         return content;
     }
 
@@ -232,8 +142,6 @@ public class WorkoutHistoryView {
         table.setStyle("-fx-background-color: white; -fx-background-radius: 10;"
                 + " -fx-border-color: #E2E8F0; -fx-border-radius: 10;");
     }
-
-    // ---- Row model --------------------------------------------------------
 
     /** One row of the workout-history table. */
     public static class Entry {
