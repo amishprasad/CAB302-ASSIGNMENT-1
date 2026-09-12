@@ -13,7 +13,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+
 import java.util.function.Consumer;
+import com.kineticfitness.db.UserDAO;
+import com.kineticfitness.session.UserSession;
 
 public class CreateProfileView {
 
@@ -21,6 +24,7 @@ public class CreateProfileView {
     private final User existingUser;
     private final Runnable onBack;
     private final Consumer<User> onProfileCreated;
+    private final UserDAO userDAO = new UserDAO();
 
     // Form fields
     private final TextField nameField = new TextField();
@@ -160,11 +164,12 @@ public class CreateProfileView {
                         age, height, weight);
             }
 
+            userDAO.save(user);                    // persist to SQLite
+            UserSession.setCurrentUser(user);      // make this the active user
+
             if (onProfileCreated != null) {
                 onProfileCreated.accept(user);
             }
-
-            showConfirmation(user);
 
         } catch (NumberFormatException ex) {
             showError("Age, height and weight must be valid numbers.");
