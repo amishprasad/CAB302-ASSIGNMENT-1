@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+
 public class LocalProfileStore {
 
     private static final LocalProfileStore INSTANCE = new LocalProfileStore();
@@ -40,6 +41,33 @@ public class LocalProfileStore {
 
     public boolean hasGoals() {
         return primaryGoal != null;
+    }
+
+    // ---- Milestone goals (Goals page) ----
+    public final java.util.List<Milestone> milestones = new java.util.ArrayList<>();
+
+    public static class Milestone {
+        public String description;
+        public double targetValue;
+        public String unit;
+        public double currentValue;
+
+        public Milestone(String description, double targetValue, String unit, double currentValue) {
+            this.description = description;
+            this.targetValue = targetValue;
+            this.unit = unit;
+            this.currentValue = currentValue;
+        }
+
+        public int progressPercent() {
+            if (targetValue <= 0) return 0;
+            int pct = (int) Math.round((currentValue / targetValue) * 100);
+            return Math.max(0, Math.min(pct, 100));
+        }
+
+        public boolean isAchieved() {
+            return currentValue >= targetValue;
+        }
     }
 
     public enum FitnessLevel {
