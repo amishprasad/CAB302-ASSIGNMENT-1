@@ -10,39 +10,32 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.util.function.Consumer;
 
+
 public class CreateProfileView {
 
     private final Stage stage;
-    private final User existingUser;
+    private final User user;
     private final Runnable onBack;
-    private final Consumer<User> onProfileCreated;
+    private final Consumer<User> onProfileUpdated;
 
-    // Form fields
-    private final TextField nameField = new TextField();
+    private final TextField usernameField = new TextField();
     private final TextField ageField = new TextField();
     private final TextField heightField = new TextField();
     private final TextField weightField = new TextField();
-    private final ComboBox<String> fitnessLevelBox = new ComboBox<>();
+    private final ComboBox<FitnessLevel> fitnessLevelBox = new ComboBox<>();
     private final Label errorLabel = new Label();
 
-    public CreateProfileView(Stage stage) {
-        this(stage, null, null, null);
-    }
-
-    public CreateProfileView(Stage stage, Runnable onBack, Consumer<User> onProfileCreated) {
-        this(stage, null, onBack, onProfileCreated);
-    }
-
-    public CreateProfileView(Stage stage, User existingUser, Runnable onBack, Consumer<User> onProfileCreated) {
+    public CreateProfileView(Stage stage, User user, Runnable onBack, Consumer<User> onProfileUpdated) {
         this.stage = stage;
-        this.existingUser = existingUser;
+        this.user = user;
         this.onBack = onBack;
-        this.onProfileCreated = onProfileCreated;
+        this.onProfileUpdated = onProfileUpdated;
     }
 
     public void show() {
@@ -50,62 +43,65 @@ public class CreateProfileView {
         root.setAlignment(Pos.TOP_CENTER);
         root.setPadding(new Insets(32));
 
-        boolean isEdit = existingUser != null;
-        Label title = new Label(isEdit ? "Edit your profile" : "Create your profile");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        boolean isNewProfile = user.getAge() <= 0;
 
-        Label subtitle = new Label(isEdit ? "Update your details below." : "Tell us about yourself so we can personalise your plan.");
+        Label title = new Label(isNewProfile ? "Create your profile" : "Edit your profile");
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+
+        Label subtitle = new Label(isNewProfile
+                ? "Tell us about yourself so we can personalise your plan."
+                : "Update your details to keep your plan accurate.");
         subtitle.setStyle("-fx-text-fill: gray;");
 
-        GridPane form = buildForm();
+        VBox formCard = buildFormCard();
 
-        errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
-        errorLabel.setVisible(false);
+        Button saveButton = new Button(isNewProfile ? "Create profile" : "Save changes");
+        saveButton.setMaxWidth(220);
+        saveButton.setOnAction(e -> handleSave());
 
-        Button actionButton = new Button(isEdit ? "Save changes" : "Create profile");
-        actionButton.setMaxWidth(Double.MAX_VALUE);
-        actionButton.setOnAction(e -> handleCreateProfile());
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setMaxWidth(220);
+        cancelButton.setOnAction(e -> {
+            if (onBack != null) onBack.run();
+        });
 
-        root.getChildren().addAll(title, subtitle, form, errorLabel, actionButton);
+        HBox buttonBox = new HBox(12, saveButton, cancelButton);
+        buttonBox.setAlignment(Pos.CENTER);
 
-        if (onBack != null) {
-            Button backButton = new Button("Back to menu");
-            backButton.setOnAction(e -> onBack.run());
-            root.getChildren().add(backButton);
-        }
+        root.getChildren().addAll(title, subtitle, formCard, errorLabel, buttonBox);
 
-        Scene scene = new Scene(root, 420, 520);
-        stage.setTitle(isEdit ? "Kinetic Fitness - Edit Profile" : "Kinetic Fitness - Create Profile");
+        Scene scene = new Scene(root, 460, 480);
+        stage.setTitle("Kinetic Fitness - " + (isNewProfile ? "Create Profile" : "Edit Profile"));
         stage.setScene(scene);
         stage.show();
     }
 
-    private GridPane buildForm() {
-        GridPane grid = new GridPane();
-        grid.setHgap(12);
-        grid.setVgap(10);
+    private VBox buildFormCard() {
+        VBox card = new VBox(10);
+        card.setStyle("-fx-background-color: #f4f4f6; -fx-background-radius: 8px; -fx-padding: 16px;");
 
+        usernameField.setText(user.getUsername() != null ? user.getUsername() : "");
+        usernameField.setPromptText("Alex");
+
+        ageField.setText(user.getAge() > 0 ? String.valueOf(user.getAge()) : "");
         ageField.setPromptText("27");
-        heightField.setPromptText("175");
-        weightField.setPromptText("70");
-        nameField.setPromptText("Alex");
 
-        fitnessLevelBox.getItems().addAll("Beginner", "Intermediate", "Advanced");
-        fitnessLevelBox.setPromptText("Select level");
+        heightField.setText(user.getHeightCm() > 0 ? String.valueOf(user.getHeightCm()) : "");
+        heightField.setPromptText("175");
+
+        weightField.setText(user.getWeightKg() > 0 ? String.valueOf(user.getWeightKg()) : "");
+        weightField.setPromptText("70");
+
+        fitnessLevelBox.getItems().addAll(FitnessLevel.values());
+        fitnessLevelBox.setValue(user.getFitnessLevel() != null ? user.getFitnessLevel() : FitnessLevel.BEGINNER);
         fitnessLevelBox.setMaxWidth(Double.MAX_VALUE);
 
-        if (existingUser != null) {
-            nameField.setText(existingUser.getUsername());
-            if (existingUser.getAge() > 0) ageField.setText(String.valueOf(existingUser.getAge()));
-            if (existingUser.getHeightCm() > 0) heightField.setText(String.valueOf((int) existingUser.getHeightCm()));
-            if (existingUser.getWeightKg() > 0) weightField.setText(String.valueOf(existingUser.getWeightKg()));
-            if (existingUser.getFitnessLevel() != null) {
-                fitnessLevelBox.setValue(displayLevel(existingUser.getFitnessLevel()));
-            }
-        }
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(10);
 
-        grid.add(new Label("First name"), 0, 0);
-        grid.add(nameField, 0, 1, 2, 1);
+        grid.add(new Label("Username"), 0, 0);
+        grid.add(usernameField, 0, 1, 2, 1);
 
         grid.add(new Label("Age"), 0, 2);
         grid.add(new Label("Fitness level"), 1, 2);
@@ -117,17 +113,21 @@ public class CreateProfileView {
         grid.add(heightField, 0, 5);
         grid.add(weightField, 1, 5);
 
-        return grid;
+        errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+        errorLabel.setVisible(false);
+
+        card.getChildren().add(grid);
+        return card;
     }
 
-    private void handleCreateProfile() {
-        String name = nameField.getText().trim();
+    private void handleSave() {
+        String username = usernameField.getText().trim();
         String ageText = ageField.getText().trim();
         String heightText = heightField.getText().trim();
         String weightText = weightField.getText().trim();
-        String fitnessLevel = fitnessLevelBox.getValue();
+        FitnessLevel fitnessLevel = fitnessLevelBox.getValue();
 
-        if (name.isEmpty() || ageText.isEmpty() || heightText.isEmpty()
+        if (username.isEmpty() || ageText.isEmpty() || heightText.isEmpty()
                 || weightText.isEmpty() || fitnessLevel == null) {
             showError("Please fill in every field before continuing.");
             return;
@@ -145,72 +145,22 @@ public class CreateProfileView {
 
             errorLabel.setVisible(false);
 
-            User user;
-            if (existingUser != null) {
-                existingUser.setUsername(name);
-                existingUser.setFitnessLevel(FitnessLevel.valueOf(fitnessLevel.toUpperCase()));
-                existingUser.setAge(age);
-                existingUser.setHeightCm(height);
-                existingUser.setWeightKg(weight);
-                user = existingUser;
-            } else {
-                user = new User(
-                        name,
-                        FitnessLevel.valueOf(fitnessLevel.toUpperCase()),
-                        age, height, weight);
-            }
+            user.setUsername(username);
+            user.setAge(age);
+            user.setHeightCm(height);
+            user.setWeightKg(weight);
+            user.setFitnessLevel(fitnessLevel);
 
-            if (onProfileCreated != null) {
-                onProfileCreated.accept(user);
+            if (onProfileUpdated != null) {
+                onProfileUpdated.accept(user);
             }
-
-            showConfirmation(user);
+            if (onBack != null) {
+                onBack.run();
+            }
 
         } catch (NumberFormatException ex) {
             showError("Age, height and weight must be valid numbers.");
         }
-    }
-
-    private void showConfirmation(User user) {
-        VBox root = new VBox(14);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(40));
-
-        boolean isEdit = existingUser != null;
-        Label heading = new Label(isEdit ? "Profile updated ✓" : "Profile created ✓");
-        heading.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-
-        Label details = new Label(String.format(
-                "%s  -  %s%nAge %d  |  %.0f cm  |  %.1f kg",
-                user.getUsername(),
-                displayLevel(user.getFitnessLevel()),
-                user.getAge(), user.getHeightCm(), user.getWeightKg()));
-        details.setStyle("-fx-text-fill: gray;");
-
-        Label bmi = new Label(String.format(
-                "BMI: %.1f  (%s)", user.getBmi(), user.getBmiCategory()));
-        bmi.setStyle("-fx-font-weight: bold;");
-
-        root.getChildren().addAll(heading, details, bmi);
-
-        if (onBack != null) {
-            Button menuButton = new Button("Back to menu");
-            menuButton.setOnAction(e -> onBack.run());
-            root.getChildren().add(menuButton);
-        } else {
-            Button editButton = new Button("Edit profile");
-            editButton.setOnAction(e -> show());
-            root.getChildren().add(editButton);
-        }
-
-        Scene scene = new Scene(root, 420, 320);
-        stage.setScene(scene);
-        stage.show();
-    }
-
-    private String displayLevel(FitnessLevel level) {
-        String name = level.name().toLowerCase();
-        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 
     private void showError(String message) {
@@ -218,4 +168,3 @@ public class CreateProfileView {
         errorLabel.setVisible(true);
     }
 }
-

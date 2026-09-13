@@ -15,11 +15,11 @@ public class Main extends Application {
         // they're built; the rest show a labelled placeholder so navigation works end to end.
         new AppShell(stage)
                 .add(new DashboardView())
-                .add(new PlaceholderPage("Profile", "Adriel"))
+                .add(new ProfileDetailsView())
                 .add(new PlaceholderPage("Log Workout", "Junxi"))
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
-                .add(new PlaceholderPage("Goals", ""))
+                .add(new GoalsView())
                 .add(new PlaceholderPage("Progress", "amish"))
                 .add(new ScheduleView())
                 .add(new PlaceholderPage("Settings", "amish"))
