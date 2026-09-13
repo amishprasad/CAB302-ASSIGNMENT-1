@@ -45,7 +45,10 @@ public class DatabaseConnection {
                     fitness_level TEXT NOT NULL,
                     age INTEGER,
                     height_cm REAL,
-                    weight_kg REAL
+                    weight_kg REAL,
+                    password TEXT,
+                    email TEXT UNIQUE,
+                    phone_number TEXT UNIQUE
                 )
             """);
             statement.execute("""

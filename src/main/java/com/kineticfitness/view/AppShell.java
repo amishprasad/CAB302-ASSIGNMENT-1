@@ -36,6 +36,7 @@ public class AppShell {
     private final BorderPane root = new BorderPane();
     private final List<Page> pages = new ArrayList<>();
     private final Map<String, Button> navButtons = new LinkedHashMap<>();
+    private Runnable onLogout = () -> {};
 
     public AppShell(Stage stage) {
         this.stage = stage;
@@ -44,6 +45,16 @@ public class AppShell {
     /** Register a page. Order controls sidebar order. Returns this for chaining. */
     public AppShell add(Page page) {
         pages.add(page);
+        return this;
+    }
+
+    /**
+     * What to do when the sidebar Logout button is clicked — e.g. clear the session and
+     * take the user back to the login screen. Set by {@code Main} so this class doesn't
+     * need to know about {@code UserSession} or {@code Login} itself. Returns this for chaining.
+     */
+    public AppShell onLogout(Runnable onLogout) {
+        this.onLogout = onLogout;
         return this;
     }
 
@@ -95,6 +106,7 @@ public class AppShell {
         logout.setMaxWidth(Double.MAX_VALUE);
         logout.setAlignment(Pos.CENTER_LEFT);
         logout.setPadding(new Insets(10, 14, 10, 14));
+        logout.setOnAction(e -> onLogout.run());
         styleNav(logout, false);
 
         sidebar.getChildren().addAll(logo, nav, spacer, logout);
