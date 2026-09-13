@@ -1,20 +1,25 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.model.BodyPart;
 import com.kineticfitness.model.Exercise;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
+import com.kineticfitness.session.UserSession;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 
 import java.time.LocalDate;
 
@@ -22,196 +27,192 @@ import java.time.LocalDate;
  * Screen for logging a single workout: add exercises (name / sets / reps),
  * see them listed, watch the running total of reps update live, and save to User history.
  */
-public class LogWorkoutView {
-
-    private final Stage stage;
-    private final User user;
-    private final Runnable onBack;
-
+public class LogWorkoutView implements Page {
     private final Workout workout = new Workout(LocalDate.now());
-
+    private final TableView<Exercise> exerciseTable = new TableView<>();
+    private final ObservableList<Exercise> exerciseData = FXCollections.observableArrayList();
     private final TextField nameField = new TextField();
     private final TextField setsField = new TextField();
     private final TextField repsField = new TextField();
-    private final ListView<String> exerciseList = new ListView<>();
-    private final Label totalRepsLabel = new Label("Total reps: 0");
-    private final Label errorLabel = new Label();
+    private final ComboBox<BodyPart> bodyPartCombo = new ComboBox<>();
+    private final Label statusLabel = new Label();
     private boolean isSaved = false;
-
-    public LogWorkoutView(Stage stage) {
-        this(stage, null, null);
+    public LogWorkoutView() {
+    }
+    @Override
+    public String label() {
+        return "Log Workout";
     }
 
-    public LogWorkoutView(Stage stage, Runnable onBack) {
-        this(stage, null, onBack);
+    @Override
+    public Node getContent() {
+        HBox content = new HBox(20);
+        content.getStyleClass().add("content-area");
+        content.setPadding(new Insets(24));
+
+        content.getChildren().addAll(buildExercisePanel(), buildAddExercisePanel());
+        return content;
     }
 
-    public LogWorkoutView(Stage stage, User user, Runnable onBack) {
-        this.stage = stage;
-        this.user = user;
-        this.onBack = onBack;
-    }
+    // Log Workout Main Page
+    private VBox buildExercisePanel() {
+        VBox panel = new VBox(12);
+        panel.getStyleClass().add("card");
+        HBox.setHgrow(panel, Priority.ALWAYS);
 
-    public void show() {
-        VBox root = new VBox(16);
-        root.setAlignment(Pos.TOP_CENTER);
-        root.setPadding(new Insets(32));
+        Label title = new Label("Log Active Workout");
+        title.getStyleClass().add("page-title");
 
-        Label title = new Label("Log a workout");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        Label subtitle = new Label("Record each exercise, its sets/reps, and the body part it targets.");
+        subtitle.getStyleClass().add("page-subtitle");
 
-        Label subtitle = new Label(user != null
-                ? "Add exercises for " + user.getUsername() + "'s workout session."
-                : "Add each exercise you did today.");
-        subtitle.setStyle("-fx-text-fill: gray;");
+        setupTableColumns();
+        exerciseTable.setItems(exerciseData);
+        VBox.setVgrow(exerciseTable, Priority.ALWAYS);
 
-        GridPane form = buildForm();
+        statusLabel.getStyleClass().add("status-label");
+        HBox.setHgrow(statusLabel, Priority.ALWAYS);
 
-        errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
-        errorLabel.setVisible(false);
+        Button deleteButton = new Button("Delete Selected");
+        deleteButton.getStyleClass().add("btn-secondary");
+        deleteButton.setOnAction(e -> handleDeleteExercise());
 
-        Button addButton = new Button("Add exercise");
-        addButton.setMaxWidth(Double.MAX_VALUE);
-        addButton.setOnAction(e -> handleAddExercise());
-
-        totalRepsLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        exerciseList.setPrefHeight(160);
-
-        Button saveButton = new Button("Finish & Save Workout");
-        saveButton.setMaxWidth(Double.MAX_VALUE);
-        saveButton.setStyle("-fx-font-weight: bold;");
+        Button saveButton = new Button("Save Workout Session");
+        saveButton.getStyleClass().add("btn-primary");
         saveButton.setOnAction(e -> handleSaveWorkout());
 
-        root.getChildren().addAll(title, subtitle, form, addButton, errorLabel,
-                exerciseList, totalRepsLabel, saveButton);
+        HBox actionRow = new HBox(10, statusLabel, deleteButton, saveButton);
+        actionRow.setAlignment(Pos.CENTER_RIGHT);
 
-        if (onBack != null) {
-            Button backButton = new Button("Back to menu");
-            backButton.setOnAction(e -> onBack.run());
-            root.getChildren().add(backButton);
-        }
-
-        Scene scene = new Scene(root, 440, 600);
-        stage.setTitle("Kinetic Fitness - Log Workout");
-        stage.setScene(scene);
-        stage.show();
+        panel.getChildren().addAll(title, subtitle, exerciseTable, actionRow);
+        return panel;
     }
 
-    private GridPane buildForm() {
-        GridPane grid = new GridPane();
-        grid.setHgap(12);
-        grid.setVgap(10);
+    private void setupTableColumns() {
+        TableColumn<Exercise, BodyPart> colBodyPart = new TableColumn<>("Body Part");
+        colBodyPart.setCellValueFactory(new PropertyValueFactory<>("bodyPart"));
+        colBodyPart.setPrefWidth(110);
 
-        nameField.setPromptText("Push-ups");
+        TableColumn<Exercise, String> colName = new TableColumn<>("Exercise");
+        colName.setCellValueFactory(new PropertyValueFactory<>("name"));
+        colName.setPrefWidth(220);
+
+        TableColumn<Exercise, Number> colSets = new TableColumn<>("Sets");
+        colSets.setCellValueFactory(new PropertyValueFactory<>("sets"));
+        colSets.setPrefWidth(70);
+
+        TableColumn<Exercise, Number> colReps = new TableColumn<>("Reps");
+        colReps.setCellValueFactory(new PropertyValueFactory<>("reps"));
+        colReps.setPrefWidth(70);
+
+        exerciseTable.getColumns().addAll(colBodyPart, colName, colSets, colReps);
+    }
+
+    private VBox buildAddExercisePanel() {
+        VBox panel = new VBox(10);
+        panel.getStyleClass().add("card");
+        panel.setPrefWidth(260);
+
+        Label title = new Label("Add Exercise");
+        title.getStyleClass().add("page-title-sm");
+
+        Label nameLabel = new Label("Exercise Name");
+        nameLabel.getStyleClass().add("field-label");
+        nameField.setPromptText("e.g. Overhead Press");
+
+        Label setsLabel = new Label("Sets");
+        setsLabel.getStyleClass().add("field-label");
         setsField.setPromptText("3");
+
+        Label repsLabel = new Label("Reps");
+        repsLabel.getStyleClass().add("field-label");
         repsField.setPromptText("10");
 
-        HBox.setHgrow(nameField, Priority.ALWAYS);
+        Label bodyPartLabel = new Label("Body Part");
+        bodyPartLabel.getStyleClass().add("field-label");
+        bodyPartCombo.setPromptText("Select body part");
+        bodyPartCombo.setPrefWidth(1000);
+        bodyPartCombo.getItems().addAll(BodyPart.values());
 
-        grid.add(new Label("Exercise"), 0, 0);
-        grid.add(new Label("Sets"), 1, 0);
-        grid.add(new Label("Reps"), 2, 0);
-        grid.add(nameField, 0, 1);
-        grid.add(setsField, 1, 1);
-        grid.add(repsField, 2, 1);
+        Button appendButton = new Button("Add to Log");
+        appendButton.getStyleClass().add("btn-outline");
+        appendButton.setOnAction(e -> handleAddExercise());
 
-        setsField.setPrefWidth(70);
-        repsField.setPrefWidth(70);
-
-        return grid;
+        panel.getChildren().addAll(title, nameLabel, nameField, setsLabel, setsField,
+                repsLabel, repsField, bodyPartLabel, bodyPartCombo, appendButton);
+        return panel;
     }
 
     private void handleAddExercise() {
         String name = nameField.getText().trim();
         String setsText = setsField.getText().trim();
         String repsText = repsField.getText().trim();
+        BodyPart bodyPart = bodyPartCombo.getValue();
 
-        if (name.isEmpty() || setsText.isEmpty() || repsText.isEmpty()) {
-            showError("Please enter an exercise name, sets and reps.");
+        if (name.isEmpty() || setsText.isEmpty() || repsText.isEmpty() || bodyPart == null) {
+            showStatus("Please fill in name, sets, reps, and body part.", true);
             return;
         }
 
+        int sets;
+        int reps;
         try {
-            int sets = Integer.parseInt(setsText);
-            int reps = Integer.parseInt(repsText);
-
-            if (sets <= 0 || reps <= 0) {
-                showError("Sets and reps must be positive whole numbers.");
-                return;
-            }
-
-            Exercise exercise = new Exercise(name, sets, reps);
-            workout.addExercise(exercise);
-
-            exerciseList.getItems().add(
-                    String.format("%s  -  %d x %d  (%d reps)",
-                            name, sets, reps, exercise.totalReps()));
-            totalRepsLabel.setText("Total reps: " + workout.totalReps());
-
-            errorLabel.setVisible(false);
-            clearForm();
-
+            sets = Integer.parseInt(setsText);
+            reps = Integer.parseInt(repsText);
         } catch (NumberFormatException ex) {
-            showError("Sets and reps must be valid whole numbers.");
+            showStatus("Sets and reps must be whole numbers.", true);
+            return;
         }
+
+        if (sets <= 0 || reps <= 0) {
+            showStatus("Sets and reps must be positive whole numbers.", true);
+            return;
+        }
+
+        Exercise exercise = new Exercise(name, sets, reps, bodyPart);
+        exerciseData.add(exercise);
+
+        nameField.clear();
+        setsField.clear();
+        repsField.clear();
+        bodyPartCombo.setValue(null);
+        nameField.requestFocus();
+        showStatus("Added " + name + ".", false);
+    }
+
+    private void handleDeleteExercise() {
+        Exercise selected = exerciseTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showStatus("Select an exercise in the table to delete it.", true);
+            return;
+        }
+        exerciseData.remove(selected);
+        showStatus("Removed " + selected.getName() + ".", false);
     }
 
     private void handleSaveWorkout() {
-        if (workout.getExercises().isEmpty()) {
-            showError("Add at least one exercise before saving the workout.");
+        if (exerciseData.isEmpty()) {
+            showStatus("Add at least one exercise before saving.", true);
             return;
         }
-
         if (isSaved) {
-            showError("This workout has already been saved.");
+            showStatus("This workout has already been saved.", true);
             return;
         }
 
+        exerciseData.forEach(workout::addExercise);
+
+        User user = UserSession.getCurrentUser();
         if (user != null) {
             user.addWorkout(workout);
         }
         isSaved = true;
-
-        showSaveConfirmation();
+        showStatus("Workout session saved.", false);
     }
 
-    private void showSaveConfirmation() {
-        VBox root = new VBox(14);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(40));
-
-        Label heading = new Label("Workout Saved ✓");
-        heading.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-
-        Label summary = new Label(String.format(
-                "Completed %d exercise(s)%nTotal repetitions: %d reps",
-                workout.getExercises().size(),
-                workout.totalReps()));
-        summary.setStyle("-fx-text-fill: gray; -fx-font-size: 14px;");
-
-        root.getChildren().addAll(heading, summary);
-
-        if (onBack != null) {
-            Button menuButton = new Button("Back to menu");
-            menuButton.setOnAction(e -> onBack.run());
-            root.getChildren().add(menuButton);
-        }
-
-        Scene scene = new Scene(root, 420, 320);
-        stage.setScene(scene);
-        stage.show();
-    }
-
-    private void clearForm() {
-        nameField.clear();
-        setsField.clear();
-        repsField.clear();
-        nameField.requestFocus();
-    }
-
-    private void showError(String message) {
-        errorLabel.setText(message);
-        errorLabel.setVisible(true);
+    private void showStatus(String message, boolean isError) {
+        statusLabel.setText(message);
+        statusLabel.setStyle(isError ? "-fx-text-fill: #dc2626;" : "-fx-text-fill: #16a34a;");
     }
 }
 
