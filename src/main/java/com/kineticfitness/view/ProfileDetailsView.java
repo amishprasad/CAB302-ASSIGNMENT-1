@@ -18,6 +18,7 @@ import java.time.Period;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.Locale;
+import com.kineticfitness.db.ProfileDAO;
 
 public class ProfileDetailsView implements Page {
 
@@ -728,9 +729,6 @@ public class ProfileDetailsView implements Page {
                 store.weeklyExerciseDurationMinutes = durationBox.getValue();
                 store.experienceLevel = experienceBox.getValue();
 
-                // TODO: once login/register is merged, persist store's
-                // fields via a real UserProfileDAO / UserGoalsDAO here.
-
                 container.getChildren().setAll(buildDetailsView());
 
             } catch (NumberFormatException ex) {
@@ -934,6 +932,7 @@ public class ProfileDetailsView implements Page {
                 store.heightCm = newHeight;
                 store.weightKg = newWeight;
                 store.fitnessLevel = fitnessBox.getValue();
+                new ProfileDAO().save(store);   // persist edits
 
                 container.getChildren().setAll(buildDetailsView());
 
