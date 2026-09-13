@@ -20,8 +20,9 @@ public class Main extends Application {
                 stage,
                 user -> {
                     UserSession.setCurrentUser(user);
-                    new ProfileDAO().load(LocalProfileStore.getInstance()); // load this user's profile
-                    launchApp(stage);
+                    new ProfileDAO().load(LocalProfileStore.getInstance());
+                    boolean hasProfile = LocalProfileStore.getInstance().hasPersonalDetails();
+                    launchApp(stage, hasProfile ? "Dashboard" : "Profile");
                 },
                 () -> showRegister(stage),
                 infoMessage
@@ -36,7 +37,7 @@ public class Main extends Application {
         ).show();
     }
 
-    private void launchApp(Stage stage) {
+    private void launchApp(Stage stage, String startLabel) {
         new AppShell(stage)
                 .add(new DashboardView())
                 .add(new ProfileDetailsView())
@@ -51,7 +52,7 @@ public class Main extends Application {
                     UserSession.clear();
                     showLogin(stage, null);
                 })
-                .show();
+                .show(startLabel);
     }
 
     public static void main(String[] args) {
