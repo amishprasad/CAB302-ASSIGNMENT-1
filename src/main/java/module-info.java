@@ -7,4 +7,5 @@ module com.kineticfitness {
     exports com.kineticfitness.view;
 
     opens com.kineticfitness.db;   // ← lets JUnit reflectively run the DAO tests
+    opens com.kineticfitness.model;   // ← lets JUnit reflectively run the model tests
 }

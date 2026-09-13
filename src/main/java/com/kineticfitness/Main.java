@@ -17,6 +17,7 @@ public class Main extends Application {
 
         new AppShell(stage)
                 .add(new DashboardView())
+                .add(new MealLogView())
                 .add(new ProfileDetailsView())
                 .add(new PlaceholderPage("Log Workout", "Junxi"))
                 .add(new WorkoutHistoryView())
