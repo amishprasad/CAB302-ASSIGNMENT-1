@@ -1,6 +1,7 @@
 package com.kineticfitness.model;
 
 public class Exercise {
+    private int id;
     private String name;
     private int sets;
     private int reps;
@@ -16,6 +17,9 @@ public class Exercise {
         this.reps = reps;
         this.bodyPart = bodyPart;
     }
+
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

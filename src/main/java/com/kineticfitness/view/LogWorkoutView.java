@@ -28,16 +28,10 @@ import java.time.LocalDate;
  * Screen for logging a single workout: add exercises (name / sets / reps),
  * see them listed, watch the running total of reps update live, and save to User history.
  */
+
 public class LogWorkoutView implements Page {
-    private final Workout workout = new Workout(LocalDate.now());
+
     private final WorkoutDAO workoutDAO = new WorkoutDAO();
-    private final TableView<Exercise> exerciseTable = new TableView<>();
-    private final ObservableList<Exercise> exerciseData = FXCollections.observableArrayList();
-    private final TextField nameField = new TextField();
-    private final TextField setsField = new TextField();
-    private final TextField repsField = new TextField();
-    private final ComboBox<BodyPart> bodyPartCombo = new ComboBox<>();
-    private final Label statusLabel = new Label();
 
     @Override
     public String label() {
@@ -46,15 +40,31 @@ public class LogWorkoutView implements Page {
 
     @Override
     public Node getContent() {
+        Workout workout = new Workout(LocalDate.now());
+        ObservableList<Exercise> exerciseData = FXCollections.observableArrayList();
+        TableView<Exercise> exerciseTable = new TableView<>();
+        TextField nameField = new TextField();
+        TextField setsField = new TextField();
+        TextField repsField = new TextField();
+        ComboBox<BodyPart> bodyPartCombo = new ComboBox<>();
+        Label statusLabel = new Label();
+        boolean[] isSaved = { false }; // one-element array so the save handler lambda can mutate it
+
         HBox content = new HBox(20);
         content.getStyleClass().add("content-area");
         content.setPadding(new Insets(24));
 
-        content.getChildren().addAll(buildExercisePanel(), buildAddExercisePanel());
+        content.getChildren().addAll(
+                buildExercisePanel(exerciseTable, exerciseData, statusLabel, workout, isSaved),
+                buildAddExercisePanel(nameField, setsField, repsField, bodyPartCombo, exerciseData, statusLabel));
+
         return content;
     }
-    // Log Workout Main Page
-    private VBox buildExercisePanel() {
+
+    // ---------- Content ----------
+
+    private VBox buildExercisePanel(TableView<Exercise> exerciseTable, ObservableList<Exercise> exerciseData,
+                                    Label statusLabel, Workout workout, boolean[] isSaved) {
         VBox panel = new VBox(12);
         panel.getStyleClass().add("card");
         HBox.setHgrow(panel, Priority.ALWAYS);
@@ -65,7 +75,7 @@ public class LogWorkoutView implements Page {
         Label subtitle = new Label("Record each exercise, its sets/reps, and the body part it targets.");
         subtitle.getStyleClass().add("page-subtitle");
 
-        setupTableColumns();
+        setupTableColumns(exerciseTable);
         exerciseTable.setItems(exerciseData);
         VBox.setVgrow(exerciseTable, Priority.ALWAYS);
 
@@ -74,11 +84,11 @@ public class LogWorkoutView implements Page {
 
         Button deleteButton = new Button("Delete Selected");
         deleteButton.getStyleClass().add("btn-secondary");
-        deleteButton.setOnAction(e -> handleDeleteExercise());
+        deleteButton.setOnAction(e -> handleDeleteExercise(exerciseTable, exerciseData, statusLabel));
 
         Button saveButton = new Button("Save Workout Session");
         saveButton.getStyleClass().add("btn-primary");
-        saveButton.setOnAction(e -> handleSaveWorkout());
+        saveButton.setOnAction(e -> handleSaveWorkout(exerciseData, statusLabel, workout, isSaved));
 
         HBox actionRow = new HBox(10, statusLabel, deleteButton, saveButton);
         actionRow.setAlignment(Pos.CENTER_RIGHT);
@@ -87,7 +97,7 @@ public class LogWorkoutView implements Page {
         return panel;
     }
 
-    private void setupTableColumns() {
+    private void setupTableColumns(TableView<Exercise> exerciseTable) {
         TableColumn<Exercise, BodyPart> colBodyPart = new TableColumn<>("Body Part");
         colBodyPart.setCellValueFactory(new PropertyValueFactory<>("bodyPart"));
         colBodyPart.setPrefWidth(110);
@@ -107,7 +117,9 @@ public class LogWorkoutView implements Page {
         exerciseTable.getColumns().addAll(colBodyPart, colName, colSets, colReps);
     }
 
-    private VBox buildAddExercisePanel() {
+    private VBox buildAddExercisePanel(TextField nameField, TextField setsField, TextField repsField,
+                                       ComboBox<BodyPart> bodyPartCombo, ObservableList<Exercise> exerciseData,
+                                       Label statusLabel) {
         VBox panel = new VBox(10);
         panel.getStyleClass().add("card");
         panel.setPrefWidth(260);
@@ -135,21 +147,26 @@ public class LogWorkoutView implements Page {
 
         Button appendButton = new Button("Add to Log");
         appendButton.getStyleClass().add("btn-outline");
-        appendButton.setOnAction(e -> handleAddExercise());
+        appendButton.setOnAction(e -> handleAddExercise(
+                nameField, setsField, repsField, bodyPartCombo, exerciseData, statusLabel));
 
         panel.getChildren().addAll(title, nameLabel, nameField, setsLabel, setsField,
                 repsLabel, repsField, bodyPartLabel, bodyPartCombo, appendButton);
         return panel;
     }
 
-    private void handleAddExercise() {
+    // ---------- Actions ----------
+
+    private void handleAddExercise(TextField nameField, TextField setsField, TextField repsField,
+                                   ComboBox<BodyPart> bodyPartCombo, ObservableList<Exercise> exerciseData,
+                                   Label statusLabel) {
         String name = nameField.getText().trim();
         String setsText = setsField.getText().trim();
         String repsText = repsField.getText().trim();
         BodyPart bodyPart = bodyPartCombo.getValue();
 
         if (name.isEmpty() || setsText.isEmpty() || repsText.isEmpty() || bodyPart == null) {
-            showStatus("Please fill in name, sets, reps, and body part.", true);
+            showStatus(statusLabel, "Please fill in name, sets, reps, and body part.", true);
             return;
         }
 
@@ -159,58 +176,63 @@ public class LogWorkoutView implements Page {
             sets = Integer.parseInt(setsText);
             reps = Integer.parseInt(repsText);
         } catch (NumberFormatException ex) {
-            showStatus("Sets and reps must be whole numbers.", true);
+            showStatus(statusLabel, "Sets and reps must be whole numbers.", true);
             return;
         }
 
         if (sets <= 0 || reps <= 0) {
-            showStatus("Sets and reps must be positive whole numbers.", true);
+            showStatus(statusLabel, "Sets and reps must be positive whole numbers.", true);
             return;
         }
 
-        Exercise exercise = new Exercise(name, sets, reps, bodyPart);
-        exerciseData.add(exercise);
+        exerciseData.add(new Exercise(name, sets, reps, bodyPart));
 
         nameField.clear();
         setsField.clear();
         repsField.clear();
         bodyPartCombo.setValue(null);
         nameField.requestFocus();
-        showStatus("Added " + name + ".", false);
+        showStatus(statusLabel, "Added " + name + ".", false);
     }
 
-    private void handleDeleteExercise() {
+    private void handleDeleteExercise(TableView<Exercise> exerciseTable, ObservableList<Exercise> exerciseData,
+                                      Label statusLabel) {
         Exercise selected = exerciseTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showStatus("Select an exercise in the table to delete it.", true);
+            showStatus(statusLabel, "Select an exercise in the table to delete it.", true);
             return;
         }
         exerciseData.remove(selected);
-        showStatus("Removed " + selected.getName() + ".", false);
+        showStatus(statusLabel, "Removed " + selected.getName() + ".", false);
     }
 
-    private void handleSaveWorkout() {
+    private void handleSaveWorkout(ObservableList<Exercise> exerciseData, Label statusLabel,
+                                   Workout workout, boolean[] isSaved) {
         if (exerciseData.isEmpty()) {
-            showStatus("Add at least one exercise before saving.", true);
+            showStatus(statusLabel, "Add at least one exercise before saving.", true);
+            return;
+        }
+        if (isSaved[0]) {
+            showStatus(statusLabel, "This workout has already been saved.", true);
             return;
         }
 
         User user = UserSession.getCurrentUser();
         if (user == null) {
-            showStatus("No active user - log in before saving a workout.", true);
+            showStatus(statusLabel, "No active user - log in before saving a workout.", true);
             return;
         }
 
         exerciseData.forEach(workout::addExercise);
         user.addWorkout(workout);          // keep in-memory state consistent for this session
         workoutDAO.save(user, workout);    // persist to SQLite
-        exerciseData.clear();
-        showStatus("Workout session saved.", false);
+
+        isSaved[0] = true;
+        showStatus(statusLabel, "Workout session saved.", false);
     }
 
-    private void showStatus(String message, boolean isError) {
+    private void showStatus(Label statusLabel, String message, boolean isError) {
         statusLabel.setText(message);
         statusLabel.setStyle(isError ? "-fx-text-fill: #dc2626;" : "-fx-text-fill: #16a34a;");
     }
 }
-

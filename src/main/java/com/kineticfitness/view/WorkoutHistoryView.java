@@ -1,5 +1,11 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.db.WorkoutDAO;
+import com.kineticfitness.model.BodyPart;
+import com.kineticfitness.model.Exercise;
+import com.kineticfitness.model.User;
+import com.kineticfitness.model.Workout;
+import com.kineticfitness.session.UserSession;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -7,20 +13,18 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.Callback;
 
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Workout History page: lists past training logs in a table and filters them by muscle group.
- * Implements {@link Page} so it plugs into the {@link AppShell} — the shell provides the
- * sidebar, this class provides only the centre content.
- */
 public class WorkoutHistoryView implements Page {
 
     private static final String ORANGE = "#F97316";
@@ -28,19 +32,11 @@ public class WorkoutHistoryView implements Page {
     private static final String TITLE = "#1E293B";
     private static final String SUBTITLE = "#64748B";
 
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("d MMM");
+
     private static final String[] FILTERS = {
             "All", "Chest", "Back", "Legs", "Arms", "Shoulders", "Core"
     };
-
-    private final List<Entry> allEntries = List.of(
-            new Entry("30 Aug", "Bench Press", "3", "10", "60 kg", "Chest"),
-            new Entry("29 Aug", "Squat", "4", "8", "80 kg", "Legs"),
-            new Entry("27 Aug", "Lat Pulldown", "3", "12", "50 kg", "Back"),
-            new Entry("25 Aug", "Shoulder Press", "3", "10", "40 kg", "Shoulders"),
-            new Entry("23 Aug", "Lunges", "3", "15 (per leg)", "20 kg", "Legs"));
-
-    private final TableView<Entry> table = new TableView<>();
-    private final List<Button> chipButtons = new ArrayList<>();
 
     @Override
     public String label() {
@@ -56,22 +52,63 @@ public class WorkoutHistoryView implements Page {
                 "View and filter past training logs to monitor progression over cycles.");
         subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + SUBTITLE + ";");
 
-        buildTable();
+        List<Entry> allEntries = loadEntries();
+        TableView<Entry> table = buildTable(allEntries);
+        HBox filterChips = buildFilterChips(table, allEntries);
 
-        VBox content = new VBox(16, title, subtitle, buildFilterChips(), table);
+        VBox content = new VBox(16, title, subtitle, filterChips, table);
         content.setPadding(new Insets(32, 40, 32, 40));
         content.setStyle("-fx-background-color: " + CONTENT_BG + ";");
         return content;
     }
 
-    private HBox buildFilterChips() {
+    private List<Entry> loadEntries() {
+        User user = UserSession.getCurrentUser();
+        if (user == null) {
+            return new ArrayList<>();
+        }
+
+        List<Entry> entries = new ArrayList<>();
+        List<Workout> workouts = new WorkoutDAO().findAllByUsername(user.getUsername());
+        for (Workout workout : workouts) {
+            String dateLabel = workout.getDate().format(DATE_FORMAT);
+            for (Exercise exercise : workout.getExercises()) {
+                entries.add(new Entry(
+                        exercise.getId(),
+                        dateLabel,
+                        exercise.getName(),
+                        String.valueOf(exercise.getSets()),
+                        String.valueOf(exercise.getReps()),
+                        bodyPartLabel(exercise.getBodyPart())));
+            }
+        }
+        return entries;
+    }
+
+    /** "CHEST" -> "Chest"; null (no body part saved) -> "—" so it never matches a real filter. */
+    private static String bodyPartLabel(BodyPart bodyPart) {
+        if (bodyPart == null) {
+            return "—";
+        }
+        String name = bodyPart.name();
+        return name.charAt(0) + name.substring(1).toLowerCase();
+    }
+
+    private HBox buildFilterChips(TableView<Entry> table, List<Entry> allEntries) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER_LEFT);
+        List<Button> chipButtons = new ArrayList<>();
+
         for (String filter : FILTERS) {
             Button chip = new Button(filter);
             chip.setPadding(new Insets(6, 16, 6, 16));
             applyChipStyle(chip, filter.equals("All"));
-            chip.setOnAction(e -> selectFilter(filter));
+            chip.setOnAction(e -> {
+                for (Button b : chipButtons) {
+                    applyChipStyle(b, b.getText().equals(filter));
+                }
+                table.setItems(FXCollections.observableArrayList(filterByPart(allEntries, filter)));
+            });
             chipButtons.add(chip);
             row.getChildren().add(chip);
         }
@@ -89,14 +126,6 @@ public class WorkoutHistoryView implements Page {
         }
     }
 
-    private void selectFilter(String filter) {
-        for (Button chip : chipButtons) {
-            applyChipStyle(chip, chip.getText().equals(filter));
-        }
-        table.setItems(FXCollections.observableArrayList(filterByPart(allEntries, filter)));
-    }
-
-    /** Pure filtering logic (unit-testable): "All" returns everything, otherwise matches body part. */
     public static List<Entry> filterByPart(List<Entry> entries, String part) {
         if ("All".equals(part)) {
             return new ArrayList<>(entries);
@@ -106,16 +135,18 @@ public class WorkoutHistoryView implements Page {
                 .collect(Collectors.toList());
     }
 
-    private void buildTable() {
+    private TableView<Entry> buildTable(List<Entry> allEntries) {
+        TableView<Entry> table = new TableView<>();
+
         TableColumn<Entry, String> dateCol = new TableColumn<>("DATE");
         dateCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getDate()));
         dateCol.setStyle("-fx-text-fill: " + SUBTITLE + ";");
-        dateCol.setPrefWidth(120);
+        dateCol.setPrefWidth(110);
 
         TableColumn<Entry, String> exCol = new TableColumn<>("EXERCISE");
         exCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getExercise()));
         exCol.setStyle("-fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
-        exCol.setPrefWidth(420);
+        exCol.setPrefWidth(360);
 
         TableColumn<Entry, String> setsCol = new TableColumn<>("SETS");
         setsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getSets()));
@@ -125,15 +156,13 @@ public class WorkoutHistoryView implements Page {
         TableColumn<Entry, String> repsCol = new TableColumn<>("REPS");
         repsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getReps()));
         repsCol.setStyle("-fx-alignment: CENTER;");
-        repsCol.setPrefWidth(120);
+        repsCol.setPrefWidth(110);
 
-        TableColumn<Entry, String> weightCol = new TableColumn<>("WEIGHT");
-        weightCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getWeight()));
-        weightCol.setStyle("-fx-alignment: CENTER-RIGHT; -fx-text-fill: " + ORANGE
-                + "; -fx-font-weight: bold;");
-        weightCol.setPrefWidth(120);
+        TableColumn<Entry, Void> deleteCol = new TableColumn<>("");
+        deleteCol.setPrefWidth(100);
+        deleteCol.setCellFactory(deleteButtonCellFactory(table, allEntries));
 
-        table.getColumns().addAll(dateCol, exCol, setsCol, repsCol, weightCol);
+        table.getColumns().addAll(dateCol, exCol, setsCol, repsCol, deleteCol);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.setItems(FXCollections.observableArrayList(allEntries));
         table.setPrefHeight(340);
@@ -141,32 +170,57 @@ public class WorkoutHistoryView implements Page {
         table.setPlaceholder(new Label("No workouts logged for this filter yet."));
         table.setStyle("-fx-background-color: white; -fx-background-radius: 10;"
                 + " -fx-border-color: #E2E8F0; -fx-border-radius: 10;");
+        return table;
     }
 
-    /** One row of the workout-history table. */
+    private Callback<TableColumn<Entry, Void>, TableCell<Entry, Void>> deleteButtonCellFactory(
+            TableView<Entry> table, List<Entry> allEntries) {
+        return column -> new TableCell<>() {
+            private final Button deleteButton = new Button("Delete");
+
+            {
+                deleteButton.setStyle("-fx-background-color: transparent; -fx-text-fill: #dc2626;"
+                        + " -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;");
+                deleteButton.setOnAction(e -> {
+                    Entry entry = getTableView().getItems().get(getIndex());
+                    if (entry.getExerciseId() != null) {
+                        new WorkoutDAO().deleteExercise(entry.getExerciseId());
+                    }
+                    table.getItems().remove(entry);
+                    allEntries.remove(entry);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : deleteButton);
+            }
+        };
+    }
+
     public static class Entry {
+        private final Integer exerciseId;
         private final String date;
         private final String exercise;
         private final String sets;
         private final String reps;
-        private final String weight;
         private final String bodyPart;
 
-        public Entry(String date, String exercise, String sets, String reps,
-                     String weight, String bodyPart) {
+        public Entry(Integer exerciseId, String date, String exercise, String sets, String reps, String bodyPart) {
+            this.exerciseId = exerciseId;
             this.date = date;
             this.exercise = exercise;
             this.sets = sets;
             this.reps = reps;
-            this.weight = weight;
             this.bodyPart = bodyPart;
         }
 
+        public Integer getExerciseId() { return exerciseId; }
         public String getDate() { return date; }
         public String getExercise() { return exercise; }
         public String getSets() { return sets; }
         public String getReps() { return reps; }
-        public String getWeight() { return weight; }
         public String getBodyPart() { return bodyPart; }
     }
 }
