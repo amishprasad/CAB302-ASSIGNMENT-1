@@ -1,231 +1,223 @@
 package com.kineticfitness.view;
 
-import com.kineticfitness.model.Goal;
-import com.kineticfitness.model.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
+import javafx.scene.Node;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 
-/**
- * Screen for setting fitness goals and tracking progress against them.
- * Add a goal with a target, select it, and log progress to see the bar fill.
- */
-public class GoalsView {
+public class GoalsView implements Page {
 
-    private final Stage stage;
-    private final User user;
-    private final Runnable onBack;
+    private static final String ACCENT = "#f97316";
+    private static final String ACHIEVED_COLOR = "#16a34a";
+    private static final String ACHIEVED_BG = "#dcfce7";
+    private static final String TITLE_COLOR = "#1E293B";
+    private static final String MUTED_COLOR = "#64748B";
+    private static final String PAGE_BG = "#F1F5F9";
+    private static final String TRACK_COLOR = "#e2e8f0";
 
-    private final TextField descriptionField = new TextField();
-    private final TextField targetField = new TextField();
-    private final ListView<Goal> goalList = new ListView<>();
-    private final Label errorLabel = new Label();
+    private final VBox milestonesListBox = new VBox(12);
+    private final LocalProfileStore store = LocalProfileStore.getInstance();
 
-    // Progress panel (for the selected goal)
-    private final Label selectedLabel = new Label("Select a goal to log progress.");
-    private final ProgressBar progressBar = new ProgressBar(0);
-    private final Label progressLabel = new Label();
-    private final TextField progressField = new TextField();
-    private final Button logProgressButton = new Button("Log progress");
-
-    public GoalsView(Stage stage) {
-        this(stage, null, null);
+    @Override
+    public String label() {
+        return "Goals";
     }
 
-    public GoalsView(Stage stage, Runnable onBack) {
-        this(stage, null, onBack);
+    @Override
+    public Node getContent() {
+        VBox page = new VBox(4);
+        page.setPadding(new Insets(32, 40, 32, 40));
+        page.setAlignment(Pos.TOP_LEFT);
+        page.setStyle("-fx-background-color: " + PAGE_BG + ";");
+
+        Label title = new Label("Performance & Physical Goals");
+        title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+
+        Label subtitle = new Label("Define targets, check percentages, and maintain consistent milestones over long-term cycles.");
+        subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: " + MUTED_COLOR + ";");
+        VBox.setMargin(subtitle, new Insets(4, 0, 20, 0));
+
+        VBox createCard = buildCreateCard();
+
+        Label activeLabel = new Label("Active Milestones Progress");
+        activeLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+        VBox.setMargin(activeLabel, new Insets(24, 0, 12, 0));
+
+        refreshMilestonesList();
+
+        page.getChildren().addAll(title, subtitle, createCard, activeLabel, milestonesListBox);
+        return page;
     }
 
-    public GoalsView(Stage stage, User user, Runnable onBack) {
-        this.stage = stage;
-        this.user = user;
-        this.onBack = onBack;
-    }
+    private VBox buildCreateCard() {
+        VBox card = new VBox(12);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setPadding(new Insets(22, 26, 22, 26));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; "
+                + "-fx-border-color: #e2e8f0; -fx-border-radius: 12;");
 
-    public void show() {
-        VBox root = new VBox(16);
-        root.setAlignment(Pos.TOP_CENTER);
-        root.setPadding(new Insets(32));
+        Label cardTitle = new Label("Create New Milestone Goal");
+        cardTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
 
-        Label title = new Label("Your goals");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        TextField descriptionField = new TextField();
+        descriptionField.setPromptText("e.g. Overhead Press 60 kg");
+        descriptionField.setPrefHeight(38);
+        descriptionField.setMaxWidth(Double.MAX_VALUE);
 
-        Label subtitle = new Label(user != null ? "Tracking goals for " + user.getUsername() : "Set targets and track your milestones.");
-        subtitle.setStyle("-fx-text-fill: gray;");
+        TextField targetField = new TextField();
+        targetField.setPromptText("60");
+        targetField.setPrefHeight(38);
 
-        GridPane form = buildForm();
+        TextField unitField = new TextField("kg");
+        unitField.setPrefHeight(38);
+        unitField.setPrefWidth(60);
 
-        errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+        Label errorLabel = new Label();
+        errorLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 12px;");
         errorLabel.setVisible(false);
 
-        Button addButton = new Button("Add goal");
-        addButton.setMaxWidth(Double.MAX_VALUE);
-        addButton.setOnAction(e -> handleAddGoal());
+        Button saveButton = new Button("Save Goal Milestone");
+        saveButton.setPrefHeight(38);
+        saveButton.setStyle("-fx-background-color: " + ACCENT + "; -fx-text-fill: white; -fx-font-weight: bold;");
+        saveButton.setOnAction(e -> {
+            String desc = descriptionField.getText().trim();
+            String targetText = targetField.getText().trim();
+            String unit = unitField.getText().trim();
 
-        configureGoalList();
-        VBox progressPanel = buildProgressPanel();
-
-        root.getChildren().addAll(title, subtitle, form, addButton, errorLabel, goalList, progressPanel);
-
-        if (onBack != null) {
-            Button backButton = new Button("Back to menu");
-            backButton.setOnAction(e -> onBack.run());
-            root.getChildren().add(backButton);
-        }
-
-        Scene scene = new Scene(root, 460, 640);
-        stage.setTitle("Kinetic Fitness - Goals");
-        stage.setScene(scene);
-        stage.show();
-    }
-
-    private GridPane buildForm() {
-        GridPane grid = new GridPane();
-        grid.setHgap(12);
-        grid.setVgap(10);
-
-        descriptionField.setPromptText("Run 100 km");
-        targetField.setPromptText("100");
-        targetField.setPrefWidth(90);
-
-        grid.add(new Label("Goal"), 0, 0);
-        grid.add(new Label("Target"), 1, 0);
-        grid.add(descriptionField, 0, 1);
-        grid.add(targetField, 1, 1);
-
-        return grid;
-    }
-
-    private void configureGoalList() {
-        goalList.setPrefHeight(160);
-        if (user != null) {
-            goalList.getItems().setAll(user.getGoals());
-        }
-        goalList.setCellFactory(list -> new ListCell<>() {
-            @Override
-            protected void updateItem(Goal goal, boolean empty) {
-                super.updateItem(goal, empty);
-                if (empty || goal == null) {
-                    setText(null);
-                } else {
-                    String tick = goal.isAchieved() ? "  ✓" : "";
-                    setText(String.format("%s  -  %d/%d (%.0f%%)%s",
-                            goal.getDescription(), goal.getCurrentValue(),
-                            goal.getTargetValue(), goal.progressPercent(), tick));
+            if (desc.isEmpty() || targetText.isEmpty() || unit.isEmpty()) {
+                errorLabel.setText("Please fill in a goal description, target, and unit.");
+                errorLabel.setVisible(true);
+                return;
+            }
+            try {
+                double target = Double.parseDouble(targetText);
+                if (target <= 0) {
+                    errorLabel.setText("Target must be a positive number.");
+                    errorLabel.setVisible(true);
+                    return;
                 }
+
+                store.milestones.add(new LocalProfileStore.Milestone(desc, target, unit, 0));
+
+                descriptionField.clear();
+                targetField.clear();
+                unitField.setText("kg");
+                errorLabel.setVisible(false);
+
+                refreshMilestonesList();
+
+            } catch (NumberFormatException ex) {
+                errorLabel.setText("Target must be a valid number.");
+                errorLabel.setVisible(true);
             }
         });
-        goalList.getSelectionModel().selectedItemProperty()
-                .addListener((obs, old, selected) -> refreshProgressPanel(selected));
+
+        HBox targetRow = new HBox(12, buildLabeledField("Numeric Target", targetField),
+                buildLabeledField("Unit", unitField), saveButton);
+        targetRow.setAlignment(Pos.BOTTOM_LEFT);
+
+        card.getChildren().addAll(cardTitle, buildLabeledField("Goal Description", descriptionField), targetRow, errorLabel);
+        return card;
     }
 
-    private VBox buildProgressPanel() {
-        selectedLabel.setStyle("-fx-font-weight: bold;");
-        progressBar.setMaxWidth(Double.MAX_VALUE);
-
-        GridPane row = new GridPane();
-        row.setHgap(10);
-        progressField.setPromptText("Amount to add");
-        progressField.setPrefWidth(140);
-        logProgressButton.setDisable(true);
-        logProgressButton.setOnAction(e -> handleLogProgress());
-        row.add(progressField, 0, 0);
-        row.add(logProgressButton, 1, 0);
-
-        VBox panel = new VBox(8, selectedLabel, progressBar, progressLabel, row);
-        panel.setPadding(new Insets(12, 0, 0, 0));
-        return panel;
+    private VBox buildLabeledField(String labelText, javafx.scene.control.Control field) {
+        Label label = new Label(labelText);
+        label.setStyle("-fx-font-size: 12px; -fx-text-fill: " + MUTED_COLOR + ";");
+        VBox box = new VBox(4, label, field);
+        return box;
     }
 
-    private void handleAddGoal() {
-        String description = descriptionField.getText().trim();
-        String targetText = targetField.getText().trim();
+    private void refreshMilestonesList() {
+        milestonesListBox.getChildren().clear();
 
-        if (description.isEmpty() || targetText.isEmpty()) {
-            showError("Please enter a goal and a target value.");
+        if (store.milestones.isEmpty()) {
+            Label empty = new Label("No milestones yet. Create one above to start tracking progress.");
+            empty.setStyle("-fx-text-fill: " + MUTED_COLOR + "; -fx-font-size: 13px;");
+            milestonesListBox.getChildren().add(empty);
             return;
         }
 
-        try {
-            int target = Integer.parseInt(targetText);
-            if (target <= 0) {
-                showError("Target must be a positive whole number.");
-                return;
+        for (LocalProfileStore.Milestone milestone : store.milestones) {
+            milestonesListBox.getChildren().add(buildMilestoneCard(milestone));
+        }
+    }
+
+    private HBox buildMilestoneCard(LocalProfileStore.Milestone milestone) {
+        HBox card = new HBox(20);
+        card.setPadding(new Insets(16, 20, 16, 20));
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
+                + "-fx-border-color: #e2e8f0; -fx-border-radius: 10;");
+
+        HBox nameRow = new HBox(8);
+        Label nameLabel = new Label(milestone.description);
+        nameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+        nameRow.getChildren().add(nameLabel);
+        if (milestone.isAchieved()) {
+            Label badge = new Label("ACHIEVED");
+            badge.setStyle("-fx-background-color: " + ACHIEVED_BG + "; -fx-text-fill: " + ACHIEVED_COLOR
+                    + "; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 2 8; -fx-background-radius: 10;");
+            nameRow.getChildren().add(badge);
+        }
+
+        Label detailLabel = new Label(String.format("Current: %s %s / Target: %s %s",
+                trimNumber(milestone.currentValue), milestone.unit, trimNumber(milestone.targetValue), milestone.unit));
+        detailLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + MUTED_COLOR + ";");
+
+        Button updateButton = new Button("Update progress");
+        updateButton.setStyle("-fx-background-color: transparent; -fx-text-fill: " + ACCENT + "; -fx-font-size: 11px;");
+        updateButton.setOnAction(e -> showUpdateProgressDialog(milestone));
+        VBox.setMargin(updateButton, new Insets(4, 0, 0, 0));
+
+        VBox leftColumn = new VBox(4, nameRow, detailLabel, updateButton);
+        HBox.setHgrow(leftColumn, Priority.ALWAYS);
+
+        StackPane progressTrack = new StackPane();
+        progressTrack.setPrefWidth(220);
+        progressTrack.setPrefHeight(8);
+        progressTrack.setStyle("-fx-background-color: " + TRACK_COLOR + "; -fx-background-radius: 4;");
+        Region progressFill = new Region();
+        progressFill.setPrefHeight(8);
+        progressFill.setStyle("-fx-background-color: " + (milestone.isAchieved() ? ACHIEVED_COLOR : ACCENT)
+                + "; -fx-background-radius: 4;");
+        StackPane.setAlignment(progressFill, Pos.CENTER_LEFT);
+        progressFill.prefWidthProperty().bind(progressTrack.widthProperty().multiply(milestone.progressPercent() / 100.0));
+        progressTrack.getChildren().add(progressFill);
+
+        Label percentLabel = new Label(milestone.progressPercent() + "%");
+        percentLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+        percentLabel.setMinWidth(40);
+
+        HBox progressSection = new HBox(12, progressTrack, percentLabel);
+        progressSection.setAlignment(Pos.CENTER_RIGHT);
+
+        card.getChildren().addAll(leftColumn, progressSection);
+        return card;
+    }
+
+    private String trimNumber(double value) {
+        if (value == Math.floor(value)) {
+            return String.valueOf((long) value);
+        }
+        return String.valueOf(value);
+    }
+
+    private void showUpdateProgressDialog(LocalProfileStore.Milestone milestone) {
+        TextInputDialog dialog = new TextInputDialog(trimNumber(milestone.currentValue));
+        dialog.setTitle("Update progress");
+        dialog.setHeaderText("Update current value for \"" + milestone.description + "\"");
+        dialog.setContentText("Current (" + milestone.unit + "):");
+        dialog.showAndWait().ifPresent(input -> {
+            try {
+                double newValue = Double.parseDouble(input.trim());
+                if (newValue >= 0) {
+                    milestone.currentValue = newValue;
+                    refreshMilestonesList();
+                }
+            } catch (NumberFormatException ignored) {
+                // Silently ignore invalid input; dialog can be reopened to retry.
             }
-
-            Goal newGoal = new Goal(description, target);
-            if (user != null) {
-                user.addGoal(newGoal);
-            }
-            goalList.getItems().add(newGoal);
-            errorLabel.setVisible(false);
-            descriptionField.clear();
-            targetField.clear();
-
-        } catch (NumberFormatException ex) {
-            showError("Target must be a valid whole number.");
-        }
-    }
-
-    private void handleLogProgress() {
-        Goal selected = goalList.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-
-        String amountText = progressField.getText().trim();
-        if (amountText.isEmpty()) {
-            showError("Enter an amount of progress to add.");
-            return;
-        }
-
-        try {
-            int amount = Integer.parseInt(amountText);
-            if (amount <= 0) {
-                showError("Progress must be a positive whole number.");
-                return;
-            }
-
-            selected.addProgress(amount);
-            errorLabel.setVisible(false);
-            progressField.clear();
-            refreshProgressPanel(selected);
-            goalList.refresh();
-
-        } catch (NumberFormatException ex) {
-            showError("Progress must be a valid whole number.");
-        }
-    }
-
-    private void refreshProgressPanel(Goal goal) {
-        boolean hasGoal = goal != null;
-        logProgressButton.setDisable(!hasGoal);
-
-        if (!hasGoal) {
-            selectedLabel.setText("Select a goal to log progress.");
-            progressBar.setProgress(0);
-            progressLabel.setText("");
-            return;
-        }
-
-        selectedLabel.setText(goal.getDescription()
-                + (goal.isAchieved() ? "  -  achieved!" : ""));
-        progressBar.setProgress(Math.min(1.0, goal.progressPercent() / 100.0));
-        progressLabel.setText(String.format("%d / %d  (%.0f%%)",
-                goal.getCurrentValue(), goal.getTargetValue(), goal.progressPercent()));
-    }
-
-    private void showError(String message) {
-        errorLabel.setText(message);
-        errorLabel.setVisible(true);
+        });
     }
 }

@@ -22,11 +22,11 @@ public class Main extends Application {
 
         new AppShell(stage)
                 .add(new DashboardView())
-                .add(new ProfilePage())                        // ← was PlaceholderPage("Profile", "Adriel")
+                .add(new ProfilePage())
                 .add(new PlaceholderPage("Log Workout", "Junxi"))
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
-                .add(new PlaceholderPage("Goals", ""))
+                .add(new GoalsView())
                 .add(new PlaceholderPage("Progress", "amish"))
                 .add(new ScheduleView())
                 .add(new PlaceholderPage("Settings", "amish"))
