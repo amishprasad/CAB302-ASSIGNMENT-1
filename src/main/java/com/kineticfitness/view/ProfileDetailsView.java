@@ -728,6 +728,7 @@ public class ProfileDetailsView implements Page {
                 store.weeklyWorkoutGoal = weeklyWorkoutBox.getValue();
                 store.weeklyExerciseDurationMinutes = durationBox.getValue();
                 store.experienceLevel = experienceBox.getValue();
+                new ProfileDAO().save(store);   // persist profile + goals
 
                 container.getChildren().setAll(buildDetailsView());
 
