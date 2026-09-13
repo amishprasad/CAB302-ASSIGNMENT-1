@@ -63,6 +63,7 @@ public class DatabaseConnection {
                     name TEXT NOT NULL,
                     sets INTEGER NOT NULL,
                     reps INTEGER NOT NULL,
+                    body_part TEXT,
                     FOREIGN KEY (workout_id) REFERENCES workouts(id)
                 )
             """);

@@ -1,5 +1,6 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.model.BodyPart;
 import com.kineticfitness.model.Exercise;
 import com.kineticfitness.model.User;
@@ -29,6 +30,7 @@ import java.time.LocalDate;
  */
 public class LogWorkoutView implements Page {
     private final Workout workout = new Workout(LocalDate.now());
+    private final WorkoutDAO workoutDAO = new WorkoutDAO();
     private final TableView<Exercise> exerciseTable = new TableView<>();
     private final ObservableList<Exercise> exerciseData = FXCollections.observableArrayList();
     private final TextField nameField = new TextField();
@@ -36,9 +38,7 @@ public class LogWorkoutView implements Page {
     private final TextField repsField = new TextField();
     private final ComboBox<BodyPart> bodyPartCombo = new ComboBox<>();
     private final Label statusLabel = new Label();
-    private boolean isSaved = false;
-    public LogWorkoutView() {
-    }
+
     @Override
     public String label() {
         return "Log Workout";
@@ -53,7 +53,6 @@ public class LogWorkoutView implements Page {
         content.getChildren().addAll(buildExercisePanel(), buildAddExercisePanel());
         return content;
     }
-
     // Log Workout Main Page
     private VBox buildExercisePanel() {
         VBox panel = new VBox(12);
@@ -195,18 +194,17 @@ public class LogWorkoutView implements Page {
             showStatus("Add at least one exercise before saving.", true);
             return;
         }
-        if (isSaved) {
-            showStatus("This workout has already been saved.", true);
+
+        User user = UserSession.getCurrentUser();
+        if (user == null) {
+            showStatus("No active user - log in before saving a workout.", true);
             return;
         }
 
         exerciseData.forEach(workout::addExercise);
-
-        User user = UserSession.getCurrentUser();
-        if (user != null) {
-            user.addWorkout(workout);
-        }
-        isSaved = true;
+        user.addWorkout(workout);          // keep in-memory state consistent for this session
+        workoutDAO.save(user, workout);    // persist to SQLite
+        exerciseData.clear();
         showStatus("Workout session saved.", false);
     }
 

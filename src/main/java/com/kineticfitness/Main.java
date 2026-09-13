@@ -2,6 +2,7 @@ package com.kineticfitness;
 
 import com.kineticfitness.db.DatabaseConnection;
 import com.kineticfitness.db.UserDAO;
+import com.kineticfitness.model.FitnessLevel;
 import com.kineticfitness.model.User;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.view.*;
@@ -14,15 +15,17 @@ public class Main extends Application {
     public void start(Stage stage) {
         DatabaseConnection.getInstance();
 
+        UserDAO userDAO = new UserDAO();
+
         // Reload the saved user so their data is there after a restart.
-        User existing = new UserDAO().findFirst();
+        User existing = userDAO.findFirst();
         if (existing != null) {
             UserSession.setCurrentUser(existing);
         }
 
         new AppShell(stage)
                 .add(new DashboardView())
-                .add(new ProfilePage())                        // ← was PlaceholderPage("Profile", "Adriel")
+                .add(new ProfilePage())
                 .add(new LogWorkoutView())
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())

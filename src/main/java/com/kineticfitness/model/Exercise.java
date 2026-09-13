@@ -6,6 +6,10 @@ public class Exercise {
     private int reps;
     private BodyPart bodyPart;
 
+    public Exercise(String name, int sets, int reps) {
+        this(name, sets, reps, null);
+    }
+
     public Exercise(String name, int sets, int reps, BodyPart bodyPart) {
         this.name = name;
         this.sets = sets;
