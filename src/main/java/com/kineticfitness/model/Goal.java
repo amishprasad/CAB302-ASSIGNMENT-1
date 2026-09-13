@@ -1,29 +1,64 @@
 package com.kineticfitness.model;
 
-public class Goal {
-    private String description;
-    private int targetValue;
-    private int currentValue;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-    public Goal(String description, int targetValue) {
-        this.description = description;
-        this.targetValue = targetValue;
-        this.currentValue = 0;
+
+public class Goal {
+
+    public enum GoalType {
+        LOSE_WEIGHT("Lose weight"), GAIN_MUSCLE("Gain muscle"),
+        IMPROVE_FITNESS("Improve fitness"), MAINTAIN_WEIGHT("Maintain weight");
+
+        public final String display;
+
+        GoalType(String display) {
+            this.display = display;
+        }
     }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    private GoalType goalType;
+    private double targetWeightKg;
+    private int weeklyWorkoutGoal;
+    private int weeklyExerciseDurationMinutes;
+    private FitnessLevel experienceLevel;
+    private final Set<String> preferredWorkoutTypes = new LinkedHashSet<>();
+    private final Set<String> preferredWorkoutDays = new LinkedHashSet<>();
 
-    public int getTargetValue() { return targetValue; }
-    public void setTargetValue(int targetValue) { this.targetValue = targetValue; }
+    public Goal(GoalType goalType, double targetWeightKg, int weeklyWorkoutGoal,
+                int weeklyExerciseDurationMinutes, FitnessLevel experienceLevel) {
+        this.goalType = goalType;
+        this.targetWeightKg = targetWeightKg;
+        this.weeklyWorkoutGoal = weeklyWorkoutGoal;
+        this.weeklyExerciseDurationMinutes = weeklyExerciseDurationMinutes;
+        this.experienceLevel = experienceLevel;
+    }
 
-    public int getCurrentValue() { return currentValue; }
-    public void addProgress(int amount) { currentValue += amount; }
+    public GoalType getGoalType() {
+        return goalType;
+    }
 
-    public boolean isAchieved() { return currentValue >= targetValue; }
+    public double getTargetWeightKg() {
+        return targetWeightKg;
+    }
 
-    public double progressPercent() {
-        if (targetValue == 0) return 0;
-        return (currentValue * 100.0) / targetValue;
+    public int getWeeklyWorkoutGoal() {
+        return weeklyWorkoutGoal;
+    }
+
+    public int getWeeklyExerciseDurationMinutes() {
+        return weeklyExerciseDurationMinutes;
+    }
+
+    public FitnessLevel getExperienceLevel() {
+        return experienceLevel;
+    }
+
+    public Set<String> getPreferredWorkoutTypes() {
+        return preferredWorkoutTypes;
+    }
+
+    public Set<String> getPreferredWorkoutDays() {
+        return preferredWorkoutDays;
     }
 }

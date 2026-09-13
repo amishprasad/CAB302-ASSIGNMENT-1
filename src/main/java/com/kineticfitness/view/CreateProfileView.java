@@ -5,17 +5,14 @@ import com.kineticfitness.model.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.time.LocalDate;
 import java.util.function.Consumer;
-
 
 public class CreateProfileView {
 
@@ -24,8 +21,11 @@ public class CreateProfileView {
     private final Runnable onBack;
     private final Consumer<User> onProfileUpdated;
 
-    private final TextField usernameField = new TextField();
-    private final TextField ageField = new TextField();
+    private final TextField firstNameField = new TextField();
+    private final TextField lastNameField = new TextField();
+    private final ComboBox<String> genderBox = new ComboBox<>();
+    private final TextField emailField = new TextField();
+    private final DatePicker dobPicker = new DatePicker();
     private final TextField heightField = new TextField();
     private final TextField weightField = new TextField();
     private final ComboBox<FitnessLevel> fitnessLevelBox = new ComboBox<>();
@@ -43,7 +43,7 @@ public class CreateProfileView {
         root.setAlignment(Pos.TOP_CENTER);
         root.setPadding(new Insets(32));
 
-        boolean isNewProfile = user.getAge() <= 0;
+        boolean isNewProfile = user.getDateOfBirth() == null;
 
         Label title = new Label(isNewProfile ? "Create your profile" : "Edit your profile");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
@@ -70,7 +70,7 @@ public class CreateProfileView {
 
         root.getChildren().addAll(title, subtitle, formCard, errorLabel, buttonBox);
 
-        Scene scene = new Scene(root, 460, 480);
+        Scene scene = new Scene(root, 460, 560);
         stage.setTitle("Kinetic Fitness - " + (isNewProfile ? "Create Profile" : "Edit Profile"));
         stage.setScene(scene);
         stage.show();
@@ -80,11 +80,23 @@ public class CreateProfileView {
         VBox card = new VBox(10);
         card.setStyle("-fx-background-color: #f4f4f6; -fx-background-radius: 8px; -fx-padding: 16px;");
 
-        usernameField.setText(user.getUsername() != null ? user.getUsername() : "");
-        usernameField.setPromptText("Alex");
+        firstNameField.setText(user.getFirstName() != null ? user.getFirstName() : "");
+        firstNameField.setPromptText("Alex");
 
-        ageField.setText(user.getAge() > 0 ? String.valueOf(user.getAge()) : "");
-        ageField.setPromptText("27");
+        lastNameField.setText(user.getLastName() != null ? user.getLastName() : "");
+        lastNameField.setPromptText("Rivera");
+
+        genderBox.getItems().addAll("Male", "Female", "Other", "Prefer not to say");
+        genderBox.setValue(user.getGender());
+        genderBox.setPromptText("Select gender");
+        genderBox.setMaxWidth(Double.MAX_VALUE);
+
+        emailField.setText(user.getEmail() != null ? user.getEmail() : "");
+        emailField.setPromptText("alex@example.com");
+
+        dobPicker.setValue(user.getDateOfBirth());
+        dobPicker.setPromptText("DD/MM/YYYY");
+        dobPicker.setMaxWidth(Double.MAX_VALUE);
 
         heightField.setText(user.getHeightCm() > 0 ? String.valueOf(user.getHeightCm()) : "");
         heightField.setPromptText("175");
@@ -100,18 +112,25 @@ public class CreateProfileView {
         grid.setHgap(16);
         grid.setVgap(10);
 
-        grid.add(new Label("Username"), 0, 0);
-        grid.add(usernameField, 0, 1, 2, 1);
+        grid.add(new Label("First name"), 0, 0);
+        grid.add(new Label("Last name"), 1, 0);
+        grid.add(firstNameField, 0, 1);
+        grid.add(lastNameField, 1, 1);
 
-        grid.add(new Label("Age"), 0, 2);
-        grid.add(new Label("Fitness level"), 1, 2);
-        grid.add(ageField, 0, 3);
-        grid.add(fitnessLevelBox, 1, 3);
+        grid.add(new Label("Gender"), 0, 2);
+        grid.add(new Label("Email"), 1, 2);
+        grid.add(genderBox, 0, 3);
+        grid.add(emailField, 1, 3);
 
-        grid.add(new Label("Height (cm)"), 0, 4);
-        grid.add(new Label("Weight (kg)"), 1, 4);
-        grid.add(heightField, 0, 5);
-        grid.add(weightField, 1, 5);
+        grid.add(new Label("Date of birth"), 0, 4);
+        grid.add(new Label("Fitness level"), 1, 4);
+        grid.add(dobPicker, 0, 5);
+        grid.add(fitnessLevelBox, 1, 5);
+
+        grid.add(new Label("Height (cm)"), 0, 6);
+        grid.add(new Label("Weight (kg)"), 1, 6);
+        grid.add(heightField, 0, 7);
+        grid.add(weightField, 1, 7);
 
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
         errorLabel.setVisible(false);
@@ -121,32 +140,45 @@ public class CreateProfileView {
     }
 
     private void handleSave() {
-        String username = usernameField.getText().trim();
-        String ageText = ageField.getText().trim();
+        String firstName = firstNameField.getText().trim();
+        String lastName = lastNameField.getText().trim();
+        String gender = genderBox.getValue();
+        String email = emailField.getText().trim();
+        LocalDate dob = dobPicker.getValue();
         String heightText = heightField.getText().trim();
         String weightText = weightField.getText().trim();
         FitnessLevel fitnessLevel = fitnessLevelBox.getValue();
 
-        if (username.isEmpty() || ageText.isEmpty() || heightText.isEmpty()
-                || weightText.isEmpty() || fitnessLevel == null) {
+        if (firstName.isEmpty() || lastName.isEmpty() || gender == null || email.isEmpty()
+                || dob == null || heightText.isEmpty() || weightText.isEmpty() || fitnessLevel == null) {
             showError("Please fill in every field before continuing.");
+            return;
+        }
+        if (!email.contains("@") || !email.contains(".")) {
+            showError("Enter a valid email address.");
+            return;
+        }
+        if (dob.isAfter(LocalDate.now())) {
+            showError("Date of birth can't be in the future.");
             return;
         }
 
         try {
-            int age = Integer.parseInt(ageText);
             double height = Double.parseDouble(heightText);
             double weight = Double.parseDouble(weightText);
 
-            if (age <= 0 || height <= 0 || weight <= 0) {
-                showError("Age, height and weight must be positive numbers.");
+            if (height <= 0 || weight <= 0) {
+                showError("Height and weight must be positive numbers.");
                 return;
             }
 
             errorLabel.setVisible(false);
 
-            user.setUsername(username);
-            user.setAge(age);
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
+            user.setGender(gender);
+            user.setEmail(email);
+            user.setDateOfBirth(dob);
             user.setHeightCm(height);
             user.setWeightKg(weight);
             user.setFitnessLevel(fitnessLevel);
@@ -159,7 +191,7 @@ public class CreateProfileView {
             }
 
         } catch (NumberFormatException ex) {
-            showError("Age, height and weight must be valid numbers.");
+            showError("Height and weight must be valid numbers.");
         }
     }
 

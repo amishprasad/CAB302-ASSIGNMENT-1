@@ -17,6 +17,7 @@ public class DatabaseConnection {
     public static Connection getInstance() {
         if (instance == null) {
             try {
+                System.out.println("SQLite DB location: " + new java.io.File("kineticfitness.db").getAbsolutePath());
                 instance = DriverManager.getConnection(URL);
                 createTables(instance);
             } catch (SQLException e) {
@@ -28,12 +29,19 @@ public class DatabaseConnection {
 
     private static void createTables(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
+            // Updated schema: first_name, last_name, gender, email, and
+            // date_of_birth replace the old single "age" column. Age is
+            // now computed in Java from date_of_birth instead of stored.
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT NOT NULL UNIQUE,
+                    first_name TEXT,
+                    last_name TEXT,
+                    gender TEXT,
+                    email TEXT,
+                    date_of_birth TEXT,
                     fitness_level TEXT NOT NULL,
-                    age INTEGER,
                     height_cm REAL,
                     weight_kg REAL
                 )
@@ -59,10 +67,14 @@ public class DatabaseConnection {
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS goals (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    description TEXT NOT NULL,
-                    target_value INTEGER NOT NULL,
-                    current_value INTEGER NOT NULL DEFAULT 0,
+                    user_id INTEGER NOT NULL UNIQUE,
+                    goal_type TEXT NOT NULL,
+                    target_weight_kg REAL,
+                    weekly_workout_goal INTEGER,
+                    weekly_exercise_duration_minutes INTEGER,
+                    experience_level TEXT,
+                    preferred_workout_types TEXT,
+                    preferred_workout_days TEXT,
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 )
             """);
