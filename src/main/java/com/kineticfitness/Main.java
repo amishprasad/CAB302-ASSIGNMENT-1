@@ -46,9 +46,9 @@ public class Main extends Application {
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
                 .add(new GoalsView())
-                .add(new PlaceholderPage("Progress", "amish"))
                 .add(new ScheduleView())
-                .add(new PlaceholderPage("Settings", "amish"))
+                .add(new ProgressAnalyticsView())
+                .add(new SettingsView())
                 .onLogout(() -> {
                     UserSession.clear();
                     showLogin(stage, null);
