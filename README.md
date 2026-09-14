@@ -7,3 +7,7 @@
 - `git checkout -b feature/<name>-<feature>`
 - Open a Pull Request, one of us to review, then merge.
 - Never commit directly to `main`.
+
+
+## Test Driven Development
+- focus on TDD.
