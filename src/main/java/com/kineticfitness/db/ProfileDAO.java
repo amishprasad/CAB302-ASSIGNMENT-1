@@ -53,12 +53,6 @@ public class ProfileDAO {
         } catch (SQLException e) {
             System.err.println("Failed to save profile: " + e.getMessage());
         }
-
-        User user = toUser(s);
-        if (user != null) {
-            userDAO.save(user);
-            UserSession.setCurrentUser(user);
-        }
     }
 
     public boolean load(LocalProfileStore s) {
@@ -87,8 +81,6 @@ public class ProfileDAO {
                 fillSet(s.preferredWorkoutTypes, rs.getString("preferred_types"));
                 fillSet(s.preferredWorkoutDays, rs.getString("preferred_days"));
 
-                User user = toUser(s);
-                if (user != null) UserSession.setCurrentUser(user);
                 return true;
             }
         } catch (SQLException e) {

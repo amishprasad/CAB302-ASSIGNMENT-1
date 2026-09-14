@@ -45,7 +45,10 @@ public class DatabaseConnection {
                     fitness_level TEXT NOT NULL,
                     age INTEGER,
                     height_cm REAL,
-                    weight_kg REAL
+                    weight_kg REAL,
+                    password TEXT,
+                    email TEXT UNIQUE,
+                    phone_number TEXT UNIQUE
                 )
             """);
             statement.execute("""
@@ -63,6 +66,7 @@ public class DatabaseConnection {
                     name TEXT NOT NULL,
                     sets INTEGER NOT NULL,
                     reps INTEGER NOT NULL,
+                    body_part TEXT,
                     FOREIGN KEY (workout_id) REFERENCES workouts(id)
                 )
             """);

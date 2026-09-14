@@ -19,6 +19,8 @@ import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.Locale;
 import com.kineticfitness.db.ProfileDAO;
+import com.kineticfitness.db.UserDAO;
+import com.kineticfitness.session.UserSession;
 
 public class ProfileDetailsView implements Page {
 
@@ -343,6 +345,25 @@ public class ProfileDetailsView implements Page {
         return l;
     }
 
+    /** The email on the logged-in account (from the users table); the profile doesn't re-ask for it. */
+    private String accountEmail() {
+        if (!UserSession.isLoggedIn()) return "";
+        String email = new UserDAO().getEmail(UserSession.getCurrentUser().getUsername());
+        return email == null ? "" : email;
+    }
+
+    /** Shows fitness-level enums as "Beginner"/"Intermediate"/"Advanced" instead of raw names. */
+    private StringConverter<LocalProfileStore.FitnessLevel> fitnessConverter(ComboBox<LocalProfileStore.FitnessLevel> box) {
+        return new StringConverter<>() {
+            @Override public String toString(LocalProfileStore.FitnessLevel fl) {
+                return fl == null ? "" : formatEnum(fl.name());
+            }
+            @Override public LocalProfileStore.FitnessLevel fromString(String s) {
+                return box.getValue();
+            }
+        };
+    }
+
     private String formatEnum(String name) {
         String s = name.toLowerCase();
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
@@ -470,9 +491,10 @@ public class ProfileDetailsView implements Page {
         firstNameField.setMaxWidth(Double.MAX_VALUE);
         firstNameField.setPrefHeight(38);
 
-        TextField emailField = new TextField(store.email);
+        TextField emailField = new TextField(accountEmail());
         emailField.setPromptText("alex@example.com");
         emailField.setPrefHeight(38);
+        emailField.setEditable(false);   // taken from your account — not re-entered here
 
         ComboBox<LocalProfileStore.Gender> genderBox = new ComboBox<>();
         genderBox.getItems().addAll(LocalProfileStore.Gender.values());
@@ -499,6 +521,7 @@ public class ProfileDetailsView implements Page {
         fitnessBox.setValue(store.fitnessLevel);
         fitnessBox.setMaxWidth(Double.MAX_VALUE);
         fitnessBox.setPrefHeight(38);
+        fitnessBox.setConverter(fitnessConverter(fitnessBox));
 
         StackPane photoPreview = buildAvatar(72);
         String[] photoPathHolder = {store.photoPath};
@@ -677,6 +700,7 @@ public class ProfileDetailsView implements Page {
         experienceBox.setValue(store.experienceLevel);
         experienceBox.setMaxWidth(Double.MAX_VALUE);
         experienceBox.setPrefHeight(38);
+        experienceBox.setConverter(fitnessConverter(experienceBox));
 
         GridPane row2 = twoColumnGrid();
         row2.add(fieldLabel("Weekly exercise duration"), 0, 0);
@@ -811,8 +835,9 @@ public class ProfileDetailsView implements Page {
         firstNameField.setMaxWidth(Double.MAX_VALUE);
         firstNameField.setPrefHeight(38);
 
-        TextField emailField = new TextField(store.email);
+        TextField emailField = new TextField(accountEmail());
         emailField.setPrefHeight(38);
+        emailField.setEditable(false);   // taken from your account
 
         ComboBox<LocalProfileStore.Gender> genderBox = new ComboBox<>();
         genderBox.getItems().addAll(LocalProfileStore.Gender.values());
@@ -836,6 +861,7 @@ public class ProfileDetailsView implements Page {
         fitnessBox.setValue(store.fitnessLevel);
         fitnessBox.setMaxWidth(Double.MAX_VALUE);
         fitnessBox.setPrefHeight(38);
+        fitnessBox.setConverter(fitnessConverter(fitnessBox));
 
         StackPane photoPreview = buildAvatar(72);
         String[] photoPathHolder = {store.photoPath};

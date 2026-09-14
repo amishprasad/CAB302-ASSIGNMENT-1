@@ -1,8 +1,7 @@
 package com.kineticfitness;
 
 import com.kineticfitness.db.DatabaseConnection;
-import com.kineticfitness.db.UserDAO;
-import com.kineticfitness.model.User;
+import com.kineticfitness.db.ProfileDAO;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.view.*;
 import javafx.application.Application;
@@ -13,18 +12,47 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         DatabaseConnection.getInstance();
-        new com.kineticfitness.db.ProfileDAO().load(com.kineticfitness.view.LocalProfileStore.getInstance());
 
+        // Every session now starts at the login screen — no more auto-loading the first user.
+        showLogin(stage, null);
+    }
+
+    private void showLogin(Stage stage, String infoMessage) {
+        new Login(
+                stage,
+                user -> {
+                    UserSession.setCurrentUser(user);
+                    launchApp(stage);
+                },
+                () -> showRegister(stage),
+                infoMessage
+        ).show();
+    }
+
+    private void showRegister(Stage stage) {
+        new Register(
+                stage,
+                () -> showLogin(stage, "Account created — please log in."),
+                () -> showLogin(stage, null)
+        ).show();
+    }
+
+    private void launchApp(Stage stage) {
         new AppShell(stage)
                 .add(new DashboardView())
                 .add(new ProfileDetailsView())
-                .add(new PlaceholderPage("Log Workout", "Junxi"))
+                .add(new MealLogView())// ← was ProfilePage, renamed on main
+                .add(new LogWorkoutView())
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
-                .add(new SettingsView())
                 .add(new GoalsView())
                 .add(new ScheduleView())
                 .add(new ProgressAnalyticsView())
+                .add(new SettingsView())
+                .onLogout(() -> {
+                    UserSession.clear();
+                    showLogin(stage, null);
+                })
                 .show();
     }
 
