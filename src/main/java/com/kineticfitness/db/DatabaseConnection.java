@@ -87,7 +87,17 @@ public class DatabaseConnection {
                     duration TEXT NOT NULL,
                     FOREIGN KEY (user_id) REFERENCES users(id)
             )
-        """);
+            """);
+            statement.execute("""
+                CREATE TABLE IF NOT EXISTS profiles (
+                    id INTEGER PRIMARY KEY,
+                    first_name TEXT, email TEXT, gender TEXT, photo_path TEXT,
+                    date_of_birth TEXT, height_cm REAL, weight_kg REAL, fitness_level TEXT,
+                    primary_goal TEXT, target_weight_kg REAL, weekly_workout_goal INTEGER,
+                    weekly_duration_minutes INTEGER, experience_level TEXT,
+                    preferred_types TEXT, preferred_days TEXT
+                )
+            """);
         }
     }
 }
