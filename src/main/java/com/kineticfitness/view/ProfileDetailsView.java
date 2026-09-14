@@ -573,7 +573,7 @@ public class ProfileDetailsView implements Page {
         grid.add(fieldLabel("Fitness level"), 0, 8);
         grid.add(fitnessBox, 0, 9, 2, 1);
 
-        Button continueButton = new Button("Continue");
+        Button continueButton = new Button("Create profile");
         continueButton.setMaxWidth(Double.MAX_VALUE);
         continueButton.setPrefHeight(42);
         continueButton.setStyle("-fx-background-color: " + ACCENT + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
@@ -619,9 +619,10 @@ public class ProfileDetailsView implements Page {
                 store.heightCm = newHeight;
                 store.weightKg = newWeight;
                 store.fitnessLevel = level;
-                store.experienceLevel = level; // sensible default, editable in step 2
+                store.experienceLevel = level; // default until goals are set
 
-                container.getChildren().setAll(buildStep2());
+                new ProfileDAO().save(store);
+                refresh();
 
             } catch (NumberFormatException ex) {
                 errorLabel.setText("Height and weight must be valid numbers.");
@@ -631,7 +632,7 @@ public class ProfileDetailsView implements Page {
 
         card.getChildren().addAll(grid, errorLabel, continueButton);
 
-        return wizardShell("Create your profile", "Step 1 of 2", 0.5,
+        return wizardShell("Create your profile", "", 1.0,
                 "Tell us about yourself so we can personalise your plan.", card);
     }
 
