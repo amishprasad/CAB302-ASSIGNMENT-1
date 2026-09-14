@@ -52,7 +52,7 @@ public class Main extends Application {
                     UserSession.clear();
                     showLogin(stage, null);
                 })
-                .show(startLabel);
+                .show();
     }
 
     public static void main(String[] args) {
