@@ -13,21 +13,16 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         DatabaseConnection.getInstance();
-
-        // Reload the saved user so their data is there after a restart.
-        User existing = new UserDAO().findFirst();
-        if (existing != null) {
-            UserSession.setCurrentUser(existing);
-        }
+        new com.kineticfitness.db.ProfileDAO().load(com.kineticfitness.view.LocalProfileStore.getInstance());
 
         new AppShell(stage)
                 .add(new DashboardView())
-                .add(new ProfilePage())                        // ← was PlaceholderPage("Profile", "Adriel")
+                .add(new ProfileDetailsView())
                 .add(new PlaceholderPage("Log Workout", "Junxi"))
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
-                .add(new PlaceholderPage("Goals", ""))
                 .add(new SettingsView())
+                .add(new GoalsView())
                 .add(new ScheduleView())
                 .add(new ProgressAnalyticsView())
                 .show();
