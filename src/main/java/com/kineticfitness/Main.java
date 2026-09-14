@@ -45,6 +45,7 @@ public class Main extends Application {
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
                 .add(new GoalsView())
+                .add(new GoalSettingsView())
                 .add(new PlaceholderPage("Progress", "amish"))
                 .add(new ScheduleView())
                 .add(new PlaceholderPage("Settings", "amish"))
