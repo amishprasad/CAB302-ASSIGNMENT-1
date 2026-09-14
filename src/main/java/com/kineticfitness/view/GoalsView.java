@@ -97,8 +97,13 @@ public class GoalsView implements Page {
                 + "-fx-border-color: #e2e8f0; -fx-border-radius: 12;");
 
         Label errorLabel = new Label();
-        errorLabel.setStyle("-fx-text-fill: " + DANGER + "; -fx-font-size: 12px;");
+        errorLabel.setWrapText(true);
+        errorLabel.setMaxWidth(Double.MAX_VALUE);
+        errorLabel.setStyle("-fx-text-fill: " + DANGER + "; -fx-font-size: 13px; -fx-font-weight: bold; "
+                + "-fx-background-color: " + DANGER_BG + "; -fx-border-color: " + DANGER + "; "
+                + "-fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 10 14;");
         errorLabel.setVisible(false);
+        errorLabel.setManaged(false);
 
         // Primary goal cards
         ToggleGroup goalGroup = new ToggleGroup();
@@ -202,6 +207,11 @@ public class GoalsView implements Page {
         cancelButton.setStyle("-fx-background-color: " + PAGE_BG + "; -fx-text-fill: " + TITLE_COLOR + ";");
         cancelButton.setOnAction(e -> refresh());
 
+        Label savedLabel = new Label("Goal saved.");
+        savedLabel.setStyle("-fx-text-fill: #15803d; -fx-font-size: 13px; -fx-font-weight: bold;");
+        savedLabel.setVisible(false);
+        savedLabel.setManaged(false);
+
         Button saveButton = new Button("Save Goal");
         saveButton.setPrefHeight(40);
         saveButton.setPrefWidth(140);
@@ -215,6 +225,7 @@ public class GoalsView implements Page {
 
             if (type == null || targetWeightText.isEmpty() || experience == null) {
                 errorLabel.setText("Please choose a goal type, target weight, and experience level.");
+                errorLabel.setManaged(true);
                 errorLabel.setVisible(true);
                 return;
             }
@@ -225,6 +236,7 @@ public class GoalsView implements Page {
                     .anyMatch(n -> n instanceof CheckBox cb && cb.isSelected());
             if (!anyTypeChecked || !anyDayChecked) {
                 errorLabel.setText("Pick at least one workout type and one workout day.");
+                errorLabel.setManaged(true);
                 errorLabel.setVisible(true);
                 return;
             }
@@ -253,20 +265,26 @@ public class GoalsView implements Page {
                 }
 
                 profileDAO.save(store);
+                errorLabel.setVisible(false);
+                errorLabel.setManaged(false);
+                savedLabel.setManaged(true);
+                savedLabel.setVisible(true);
                 refresh();
 
             } catch (NumberFormatException ex) {
                 errorLabel.setText("Target weight must be a valid number.");
+                errorLabel.setManaged(true);
                 errorLabel.setVisible(true);
             }
         });
 
         Region buttonSpacer = new Region();
         HBox.setHgrow(buttonSpacer, Priority.ALWAYS);
-        HBox buttonRow = new HBox(12, cancelButton, buttonSpacer, saveButton);
+        HBox buttonRow = new HBox(12, cancelButton, savedLabel, buttonSpacer, saveButton);
+        buttonRow.setAlignment(Pos.CENTER_LEFT);
 
         card.getChildren().addAll(goalTypeBlock, row1, weeklyWorkoutBlock, typesBlock, daysBlock,
-                experienceBlock, errorLabel, divider, buttonRow);
+                experienceBlock, divider, errorLabel, buttonRow);
 
         ScrollPane scroller = new ScrollPane(page);
         scroller.setFitToWidth(true);
