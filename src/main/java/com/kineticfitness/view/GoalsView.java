@@ -76,7 +76,7 @@ public class GoalsView implements Page {
         Label title = new Label("Set a New Goal");
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
         Label subtitle = new Label(hasGoals
-                ? "Remove your current goal and set a new one to continue your fitness journey."
+                ? "Change anything below and save to replace your current goal."
                 : "Tell us what you want to achieve. We'll create a plan to help you get there.");
         subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: " + MUTED_COLOR + ";");
         titleBlock.getChildren().addAll(title, subtitle);
@@ -84,9 +84,6 @@ public class GoalsView implements Page {
         Region headerSpacer = new Region();
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
         headerRow.getChildren().addAll(titleBlock, headerSpacer);
-        if (hasGoals) {
-            headerRow.getChildren().add(buildDeleteGoalPanel());
-        }
         headerRow.setAlignment(Pos.TOP_LEFT);
         VBox.setMargin(headerRow, new Insets(0, 0, 20, 0));
 
