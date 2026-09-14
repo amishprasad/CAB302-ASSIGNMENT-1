@@ -245,6 +245,7 @@ public class GoalsView implements Page {
                 double targetWeight = Double.parseDouble(targetWeightText);
                 if (targetWeight <= 0) {
                     errorLabel.setText("Target weight must be a positive number.");
+                    errorLabel.setManaged(true);
                     errorLabel.setVisible(true);
                     return;
                 }
