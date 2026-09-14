@@ -12,6 +12,8 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         DatabaseConnection.getInstance();
+
+        // Every session now starts at the login screen — no more auto-loading the first user.
         showLogin(stage, null);
     }
 
@@ -20,9 +22,7 @@ public class Main extends Application {
                 stage,
                 user -> {
                     UserSession.setCurrentUser(user);
-                    new ProfileDAO().load(LocalProfileStore.getInstance());
-                    boolean hasProfile = LocalProfileStore.getInstance().hasPersonalDetails();
-                    launchApp(stage, hasProfile ? "Dashboard" : "Profile");
+                    launchApp(stage);
                 },
                 () -> showRegister(stage),
                 infoMessage
@@ -37,11 +37,12 @@ public class Main extends Application {
         ).show();
     }
 
-    private void launchApp(Stage stage, String startLabel) {
+    private void launchApp(Stage stage) {
         new AppShell(stage)
                 .add(new DashboardView())
                 .add(new ProfileDetailsView())
-                .add(new PlaceholderPage("Log Workout", "Junxi"))
+                .add(new MealLogView())// ← was ProfilePage, renamed on main
+                .add(new LogWorkoutView())
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
                 .add(new GoalsView())
@@ -52,7 +53,7 @@ public class Main extends Application {
                     UserSession.clear();
                     showLogin(stage, null);
                 })
-                .show(startLabel);
+                .show();
     }
 
     public static void main(String[] args) {
