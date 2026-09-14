@@ -59,9 +59,16 @@ public class AppShell {
     }
 
     public void show() {
+        show(null);   // null → defaults to the first page added
+    }
+
+    public void show(String startLabel) {
         root.setLeft(buildSidebar());
-        if (!pages.isEmpty()) {
-            navigate(pages.get(0).label());
+        String target = (startLabel != null && navButtons.containsKey(startLabel))
+                ? startLabel
+                : (pages.isEmpty() ? null : pages.get(0).label());
+        if (target != null) {
+            navigate(target);
         }
         stage.setTitle("Kinetic Fitness");
         stage.setScene(new Scene(root, 1280, 800));

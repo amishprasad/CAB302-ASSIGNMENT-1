@@ -1,6 +1,7 @@
 package com.kineticfitness;
 
 import com.kineticfitness.db.DatabaseConnection;
+import com.kineticfitness.db.ProfileDAO;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.view.*;
 import javafx.application.Application;
@@ -51,7 +52,7 @@ public class Main extends Application {
                     UserSession.clear();
                     showLogin(stage, null);
                 })
-                .show();
+                .show(startLabel);
     }
 
     public static void main(String[] args) {

@@ -150,6 +150,22 @@ public class UserDAO {
         return null;
     }
 
+    /** The email stored on a user's account, or null if not found. */
+    public String getEmail(String username) {
+        Connection connection = DatabaseConnection.getInstance();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT email FROM users WHERE username = ?")) {
+            statement.setString(1, username);
+            ResultSet rs = statement.executeQuery();
+            if (rs.next()) {
+                return rs.getString("email");
+            }
+        } catch (SQLException e) {
+            System.err.println("Failed to load email: " + e.getMessage());
+        }
+        return null;
+    }
+
     private User mapRow(ResultSet rs) throws SQLException {
         User user = new User(
                 rs.getString("username"),
