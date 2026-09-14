@@ -25,7 +25,7 @@ public class Main extends Application {
 
         new AppShell(stage)
                 .add(new DashboardView())
-                .add(new ProfilePage())
+                .add(new ProfileDetailsView())
                 .add(new LogWorkoutView())
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
