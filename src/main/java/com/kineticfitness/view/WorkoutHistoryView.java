@@ -85,7 +85,6 @@ public class WorkoutHistoryView implements Page {
         return entries;
     }
 
-    /** "CHEST" -> "Chest"; null (no body part saved) -> "—" so it never matches a real filter. */
     private static String bodyPartLabel(BodyPart bodyPart) {
         if (bodyPart == null) {
             return "—";
@@ -94,6 +93,7 @@ public class WorkoutHistoryView implements Page {
         return name.charAt(0) + name.substring(1).toLowerCase();
     }
 
+    // ---------- Content ----------
     private HBox buildFilterChips(TableView<Entry> table, List<Entry> allEntries) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER_LEFT);
