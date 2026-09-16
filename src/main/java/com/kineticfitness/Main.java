@@ -23,6 +23,7 @@ public class Main extends Application {
                 stage,
                 user -> {
                     UserSession.setCurrentUser(user);
+                    loadProfileFor(user.getUsername());
                     launchApp(stage);
                 },
                 () -> showRegister(stage),
@@ -53,9 +54,21 @@ public class Main extends Application {
                 .withReminders(Main::currentUserSchedule)
                 .onLogout(() -> {
                     UserSession.clear();
+                    LocalProfileStore.getInstance().clear();
                     showLogin(stage, null);
                 })
                 .show();
+    }
+
+    /**
+     * Loads this account's saved profile into the shared store, replacing whatever
+     * the previous user left behind. Without this the profile is written to the
+     * database but never read back, so the app asks you to create it every login.
+     */
+    private static void loadProfileFor(String username) {
+        LocalProfileStore store = LocalProfileStore.getInstance();
+        store.clear();
+        new ProfileDAO().load(store, username);
     }
 
     /**

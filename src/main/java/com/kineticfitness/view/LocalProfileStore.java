@@ -35,6 +35,29 @@ public class LocalProfileStore {
     public final Set<String> preferredWorkoutTypes = new LinkedHashSet<>();
     public final Set<String> preferredWorkoutDays = new LinkedHashSet<>();
 
+    /**
+     * Resets every field to its default. Called when a user signs in or out, so one
+     * account's details can never be shown to the next person to log in.
+     */
+    public void clear() {
+        firstName = "";
+        email = "";
+        gender = null;
+        photoPath = null;
+        dateOfBirth = null;
+        heightCm = 0;
+        weightKg = 0;
+        fitnessLevel = FitnessLevel.BEGINNER;
+        primaryGoal = null;
+        targetWeightKg = 0;
+        weeklyWorkoutGoal = 4;
+        weeklyExerciseDurationMinutes = 240;
+        experienceLevel = FitnessLevel.BEGINNER;
+        preferredWorkoutTypes.clear();
+        preferredWorkoutDays.clear();
+        milestones.clear();
+    }
+
     public boolean hasPersonalDetails() {
         return dateOfBirth != null;
     }
