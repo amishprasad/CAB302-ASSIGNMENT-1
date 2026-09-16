@@ -1,5 +1,6 @@
 package com.kineticfitness.service;
 
+import com.kineticfitness.model.ScheduleStatus;
 import com.kineticfitness.model.ScheduledWorkout;
 import org.junit.jupiter.api.Test;
 
@@ -7,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -30,5 +32,19 @@ class ScheduleConflictDetectorTest {
                 "Leg Day", DATE, LocalTime.of(18, 30), 45, ScheduledWorkout.NO_REMINDER);
 
         assertTrue(ScheduleConflictDetector.clashes(candidate, List.of(booked)));
+    }
+
+    @Test
+    void aCompletedWorkoutDoesNotBlockTheSlot() {
+        // Cardio was booked 18:00-19:00 but has already been marked done.
+        ScheduledWorkout done = new ScheduledWorkout(
+                "Cardio", DATE, LocalTime.of(18, 0), 60, ScheduledWorkout.NO_REMINDER)
+                .withStatus(ScheduleStatus.COMPLETED);
+
+        // Finishing it frees the slot, so an 18:30 session is not a clash.
+        ScheduledWorkout candidate = new ScheduledWorkout(
+                "Leg Day", DATE, LocalTime.of(18, 30), 45, ScheduledWorkout.NO_REMINDER);
+
+        assertFalse(ScheduleConflictDetector.clashes(candidate, List.of(done)));
     }
 }
