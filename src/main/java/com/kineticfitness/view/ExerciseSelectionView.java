@@ -13,15 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Exercise Selection page: browse exercises grouped/filterable by body part,
- * each shown as an info card (name, body part, description).
- *
- * Mirrors WorkoutHistoryView's style (same colours, same filter-chip pattern)
- * so the app looks consistent. Uses its own static ExerciseInfo list, since
- * the real Exercise model (name/sets/reps) doesn't carry body part or
- * description data — that's only needed here for browsing, not for logging.
- */
+
 public class ExerciseSelectionView implements Page {
 
     private static final String ORANGE = "#F97316";

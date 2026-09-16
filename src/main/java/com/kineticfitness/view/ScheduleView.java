@@ -16,11 +16,7 @@ import javafx.scene.layout.VBox;
 
 import java.util.List;
 
-/**
- * Workout Schedule page: plan a workout via a form and see upcoming workouts, each of which
- * can be Completed, Skipped, or Rescheduled. Reads/writes through {@link ScheduleDAO} so the
- * schedule persists across sessions for the logged-in user.
- */
+
 public class ScheduleView implements Page {
 
     private static final String ORANGE = "#F97316";

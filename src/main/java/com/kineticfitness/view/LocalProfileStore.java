@@ -35,12 +35,23 @@ public class LocalProfileStore {
     public final Set<String> preferredWorkoutTypes = new LinkedHashSet<>();
     public final Set<String> preferredWorkoutDays = new LinkedHashSet<>();
 
+    /** Set automatically the first time a goal is saved; preserved across edits. */
+    public LocalDate goalStartDate = null;
+    /** The deadline the user picked for the goal. */
+    public LocalDate goalTargetDate = null;
+    /** Set when the goal is completed; null while it is still active. */
+    public LocalDate goalAchievedDate = null;
+
     public boolean hasPersonalDetails() {
         return dateOfBirth != null;
     }
 
     public boolean hasGoals() {
         return primaryGoal != null;
+    }
+
+    public boolean isGoalAchieved() {
+        return primaryGoal != null && goalAchievedDate != null;
     }
 
     // ---- Milestone goals (Goals page) ----

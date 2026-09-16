@@ -18,14 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * The application frame every screen plugs into. It owns the window and the sidebar, and
- * swaps only the centre content when a nav item is clicked, so pages never redraw the
- * sidebar themselves. Register pages with {@link #add(Page)} then call {@link #show()}.
- *
- * <p>How a teammate adds their screen: implement {@link Page} and add it in Main —
- * {@code new AppShell(stage).add(new MyView()) ... .show();}
- */
+
 public class AppShell {
 
     private static final String NAVY = "#0F172A";
@@ -48,11 +41,7 @@ public class AppShell {
         return this;
     }
 
-    /**
-     * What to do when the sidebar Logout button is clicked — e.g. clear the session and
-     * take the user back to the login screen. Set by {@code Main} so this class doesn't
-     * need to know about {@code UserSession} or {@code Login} itself. Returns this for chaining.
-     */
+
     public AppShell onLogout(Runnable onLogout) {
         this.onLogout = onLogout;
         return this;
