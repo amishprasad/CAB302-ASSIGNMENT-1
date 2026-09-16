@@ -47,4 +47,35 @@ class ScheduleConflictDetectorTest {
 
         assertFalse(ScheduleConflictDetector.clashes(candidate, List.of(done)));
     }
+
+    @Test
+    void backToBackWorkoutsDoNotClash() {
+        // Cardio finishes at 19:00 and Leg Day starts at 19:00. Touching is not
+        // overlapping - this is what keeps the comparison strict (isBefore, not !isAfter).
+        ScheduledWorkout first = new ScheduledWorkout(
+                "Cardio", DATE, LocalTime.of(18, 0), 60, ScheduledWorkout.NO_REMINDER);
+        ScheduledWorkout second = new ScheduledWorkout(
+                "Leg Day", DATE, LocalTime.of(19, 0), 45, ScheduledWorkout.NO_REMINDER);
+
+        assertFalse(ScheduleConflictDetector.clashes(second, List.of(first)));
+        assertFalse(ScheduleConflictDetector.clashes(first, List.of(second)));
+    }
+
+    @Test
+    void anEmptyScheduleNeverClashes() {
+        ScheduledWorkout candidate = new ScheduledWorkout(
+                "Leg Day", DATE, LocalTime.of(18, 30), 45, ScheduledWorkout.NO_REMINDER);
+
+        assertFalse(ScheduleConflictDetector.clashes(candidate, List.of()));
+    }
+
+    @Test
+    void aWorkoutOnAnotherDayDoesNotClash() {
+        ScheduledWorkout booked = new ScheduledWorkout(
+                "Cardio", DATE, LocalTime.of(18, 0), 60, ScheduledWorkout.NO_REMINDER);
+        ScheduledWorkout nextDay = new ScheduledWorkout(
+                "Leg Day", DATE.plusDays(1), LocalTime.of(18, 30), 45, ScheduledWorkout.NO_REMINDER);
+
+        assertFalse(ScheduleConflictDetector.clashes(nextDay, List.of(booked)));
+    }
 }
