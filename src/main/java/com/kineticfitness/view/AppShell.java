@@ -202,7 +202,7 @@ public class AppShell {
         Node content = null;
         for (Page page : pages) {
             if (page.label().equals(label)) {
-                content = page.getContent();
+                content = safeContent(page);
                 break;
             }
         }
@@ -212,6 +212,28 @@ public class AppShell {
         }
         if (reminderSource != null) {
             refreshReminders();   // don't make the user wait up to 30s after navigating
+        }
+    }
+
+    /**
+     * Builds a page's content, turning a crash into a visible message instead of a
+     * blank window. One screen failing must not take the whole shell down, and the
+     * cause needs to reach the person looking at it.
+     */
+    private Node safeContent(Page page) {
+        try {
+            return page.getContent();
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            Label heading = new Label(page.label() + " could not be loaded");
+            heading.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #B91C1C;");
+            Label detail = new Label(e.getClass().getSimpleName() + ": " + e.getMessage());
+            detail.setStyle("-fx-font-size: 13px; -fx-text-fill: #7F1D1D;");
+            detail.setWrapText(true);
+            VBox box = new VBox(10, heading, detail);
+            box.setPadding(new Insets(32, 40, 32, 40));
+            box.setStyle("-fx-background-color: #FEF2F2;");
+            return box;
         }
     }
 
