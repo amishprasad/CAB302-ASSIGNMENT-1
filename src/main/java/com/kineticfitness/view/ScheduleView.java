@@ -4,12 +4,14 @@ import com.kineticfitness.db.ScheduleDAO;
 import com.kineticfitness.model.ScheduleStatus;
 import com.kineticfitness.model.ScheduledWorkout;
 import com.kineticfitness.service.ReminderService;
+import com.kineticfitness.service.ScheduleConflictDetector;
 import com.kineticfitness.service.ScheduleValidator;
 import com.kineticfitness.service.ValidationResult;
 import com.kineticfitness.session.UserSession;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
@@ -251,11 +253,30 @@ public class ScheduleView implements Page {
         int minutes = ScheduleValidator.parseDurationMinutes(durationText).getAsInt();
         int reminderLead = reminderBox.getValue() == null ? ScheduledWorkout.NO_REMINDER : reminderBox.getValue();
 
-        scheduleDAO.save(currentUsername(),
-                new ScheduledWorkout(name, datePicker.getValue(), startTime, minutes, reminderLead));
+        ScheduledWorkout candidate =
+                new ScheduledWorkout(name, datePicker.getValue(), startTime, minutes, reminderLead);
+
+        // An overlap is a warning, not a rule - a user may genuinely want two
+        // sessions in the same slot, so they get the final say.
+        if (ScheduleConflictDetector.clashes(candidate, scheduleDAO.findForUser(currentUsername()))
+                && !confirmClash()) {
+            return;
+        }
+
+        scheduleDAO.save(currentUsername(), candidate);
 
         clearForm();
         refreshRows();
+    }
+
+    /** Asks whether to go ahead with a workout that overlaps one already booked. */
+    private boolean confirmClash() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
+                "This overlaps a workout already on your schedule.\n\nSchedule it anyway?",
+                ButtonType.YES, ButtonType.NO);
+        alert.setTitle("Scheduling clash");
+        alert.setHeaderText(null);
+        return alert.showAndWait().filter(button -> button == ButtonType.YES).isPresent();
     }
 
     private void clearForm() {
