@@ -18,13 +18,18 @@ public final class ScheduleConflictDetector {
     /**
      * Whether {@code candidate} overlaps any workout in {@code existing}.
      *
-     * <p>Two sessions overlap when each starts before the other finishes.</p>
+     * <p>Two sessions overlap when each starts before the other finishes. Workouts
+     * that have been completed or skipped are ignored &mdash; they are history, not
+     * a commitment, so they do not block the slot.</p>
      *
      * @param candidate the workout being scheduled
      * @param existing  the workouts already in the schedule
      */
     public static boolean clashes(ScheduledWorkout candidate, Collection<ScheduledWorkout> existing) {
         for (ScheduledWorkout other : existing) {
+            if (!other.isOpen()) {
+                continue;   // a completed or skipped session no longer holds its slot
+            }
             if (candidate.startsAt().isBefore(other.endsAt())
                     && other.startsAt().isBefore(candidate.endsAt())) {
                 return true;
