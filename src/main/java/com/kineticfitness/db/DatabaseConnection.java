@@ -29,6 +29,7 @@ public class DatabaseConnection {
             try {
                 instance = DriverManager.getConnection(url);   // note: url, not URL
                 createTables(instance);
+                ScheduleDAO.migrate(instance);   // upgrades a pre-existing schedule table in place
             } catch (SQLException e) {
                 System.err.println("Failed to connect to database: " + e.getMessage());
             }
@@ -87,9 +88,11 @@ public class DatabaseConnection {
                     workout_name TEXT NOT NULL,
                     workout_date TEXT NOT NULL,
                     start_time TEXT NOT NULL,
-                    duration TEXT NOT NULL,
+                    duration_minutes INTEGER NOT NULL DEFAULT 60,
+                    status TEXT NOT NULL DEFAULT 'SCHEDULED',
+                    reminder_minutes INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (user_id) REFERENCES users(id)
-            )
+                )
             """);
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS profiles (

@@ -2,6 +2,7 @@ package com.kineticfitness;
 
 import com.kineticfitness.db.DatabaseConnection;
 import com.kineticfitness.db.ProfileDAO;
+import com.kineticfitness.db.ScheduleDAO;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.view.*;
 import javafx.application.Application;
@@ -49,11 +50,23 @@ public class Main extends Application {
                 .add(new ScheduleView())
                 .add(new ProgressAnalyticsView())
                 .add(new SettingsView())
+                .withReminders(Main::currentUserSchedule)
                 .onLogout(() -> {
                     UserSession.clear();
                     showLogin(stage, null);
                 })
                 .show();
+    }
+
+    /**
+     * The signed-in user's schedule, used by the reminder strip in the app shell.
+     * Returns an empty list when nobody is signed in, so the strip simply stays hidden.
+     */
+    private static java.util.List<com.kineticfitness.model.ScheduledWorkout> currentUserSchedule() {
+        if (!UserSession.isLoggedIn()) {
+            return java.util.List.of();
+        }
+        return new ScheduleDAO().findForUser(UserSession.getCurrentUser().getUsername());
     }
 
     public static void main(String[] args) {
