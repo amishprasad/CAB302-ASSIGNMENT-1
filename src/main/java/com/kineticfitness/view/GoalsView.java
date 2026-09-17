@@ -394,7 +394,14 @@ public class GoalsView implements Page {
         blurb.setWrapText(true);
         blurb.setStyle("-fx-font-size: 13px; -fx-text-fill: " + MUTED_COLOR + ";");
 
-        VBox text = new VBox(6, title, when, blurb);
+        VBox text = new VBox(6, title, when);
+        if (store.goalTargetDate != null) {
+            Label margin = new Label(achievedMarginText());
+            margin.setWrapText(true);
+            margin.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+            text.getChildren().add(margin);
+        }
+        text.getChildren().add(blurb);
         HBox.setHgrow(text, Priority.ALWAYS);
 
         Label slogan = new Label("Stronger\nHealthier\nHappier You!");
@@ -683,7 +690,10 @@ public class GoalsView implements Page {
             remaining.setWrapText(true);
             remaining.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
 
-            Label encouragement = new Label("Stay consistent and keep going!");
+            Label encouragement = new Label(
+                    java.time.LocalDate.now().isAfter(store.goalTargetDate)
+                            ? "Update your weight, or edit the goal to set a new date."
+                            : "Stay consistent and keep going!");
             encouragement.setStyle("-fx-font-size: 12px; -fx-text-fill: " + MUTED_COLOR + ";");
 
             VBox note = new VBox(2, remaining, encouragement);
@@ -754,10 +764,29 @@ public class GoalsView implements Page {
 
     private String remainingText() {
         java.time.LocalDate today = java.time.LocalDate.now();
-        if (!today.isBefore(store.goalTargetDate)) {
-            return "Your target date has passed.";
+        long days = java.time.temporal.ChronoUnit.DAYS.between(today, store.goalTargetDate);
+        if (days == 0) {
+            return "Today is your target date \u2014 " + formatDate(store.goalTargetDate) + ".";
         }
-        return "You have " + durationText(today, store.goalTargetDate) + " to achieve your goal.";
+        if (days < 0) {
+            return "Your target date passed " + plural((int) -days, "day") + " ago.";
+        }
+        return "You have " + plural((int) days, "day") + " left, until "
+                + formatDate(store.goalTargetDate) + ".";
+    }
+
+    /** How the achieved date landed against the target date. */
+    private String achievedMarginText() {
+        long days = java.time.temporal.ChronoUnit.DAYS.between(
+                store.goalAchievedDate, store.goalTargetDate);
+        String target = formatDate(store.goalTargetDate);
+        if (days > 0) {
+            return plural((int) days, "day") + " ahead of your target date of " + target + ".";
+        }
+        if (days == 0) {
+            return "Right on your target date of " + target + ".";
+        }
+        return plural((int) -days, "day") + " after your target date of " + target + ".";
     }
 
     private String plural(int n, String unit) {
@@ -792,37 +821,6 @@ public class GoalsView implements Page {
             default:
                 return "“Consistency beats intensity.”";
         }
-    }
-
-    private VBox buildDeleteGoalPanel() {
-        VBox panel = new VBox(2);
-        panel.setPadding(new Insets(12, 16, 12, 16));
-        panel.setMaxWidth(300);
-        panel.setStyle("-fx-background-color: " + DANGER_BG + "; -fx-border-color: " + DANGER
-                + "; -fx-border-radius: 8; -fx-background-radius: 8;");
-
-        Button deleteButton = new Button("🗑 Delete Current Goal");
-        deleteButton.setStyle("-fx-background-color: transparent; -fx-text-fill: " + DANGER
-                + "; -fx-font-weight: bold; -fx-padding: 0;");
-        deleteButton.setOnAction(e -> {
-            store.primaryGoal = null;
-            store.targetWeightKg = 0;
-            store.weeklyWorkoutGoal = 4;
-            store.weeklyExerciseDurationMinutes = 240;
-            store.experienceLevel = store.fitnessLevel;
-            store.preferredWorkoutTypes.clear();
-            store.preferredWorkoutDays.clear();
-            store.goalStartDate = null;
-            store.goalTargetDate = null;
-            profileDAO.save(store);
-            refresh();
-        });
-
-        Label note = new Label("Your existing goal will be removed.");
-        note.setStyle("-fx-font-size: 11px; -fx-text-fill: " + DANGER + ";");
-
-        panel.getChildren().addAll(deleteButton, note);
-        return panel;
     }
 
     private VBox sectionBlock(String title, String helpText, Node content) {

@@ -41,6 +41,28 @@ public class LocalProfileStore {
     public LocalDate goalTargetDate = null;
     /** Set when the goal is completed; null while it is still active. */
     public LocalDate goalAchievedDate = null;
+    /** Wipes every field back to defaults, so a different account starts clean. */
+    public void reset() {
+        firstName = "";
+        email = "";
+        gender = null;
+        photoPath = null;
+        dateOfBirth = null;
+        heightCm = 0;
+        weightKg = 0;
+        fitnessLevel = FitnessLevel.BEGINNER;
+        primaryGoal = null;
+        targetWeightKg = 0;
+        weeklyWorkoutGoal = 4;
+        weeklyExerciseDurationMinutes = 240;
+        experienceLevel = FitnessLevel.BEGINNER;
+        preferredWorkoutTypes.clear();
+        preferredWorkoutDays.clear();
+        goalStartDate = null;
+        goalTargetDate = null;
+        goalAchievedDate = null;
+        milestones.clear();
+    }
 
     public boolean hasPersonalDetails() {
         return dateOfBirth != null;
@@ -49,11 +71,9 @@ public class LocalProfileStore {
     public boolean hasGoals() {
         return primaryGoal != null;
     }
-
     public boolean isGoalAchieved() {
         return primaryGoal != null && goalAchievedDate != null;
     }
-
     // ---- Milestone goals (Goals page) ----
     public final java.util.List<Milestone> milestones = new java.util.ArrayList<>();
 

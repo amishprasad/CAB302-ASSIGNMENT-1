@@ -30,8 +30,6 @@ public class ProfileDetailsView implements Page {
     private static final String MUTED_COLOR = "#64748B";
     private static final String PAGE_BG = "#F1F5F9";
 
-    private static final String[] WORKOUT_TYPES = {"Strength training", "Cardio", "Walking", "Yoga & mobility"};
-    private static final String[] WORKOUT_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
 
     private final StackPane container = new StackPane();
     private final LocalProfileStore store = LocalProfileStore.getInstance();
@@ -83,13 +81,7 @@ public class ProfileDetailsView implements Page {
         return page;
     }
 
-    /**
-     * TODO: no real workout data is available to ProfileView yet. This
-     * shows the empty state (matching the reference design) until
-     * Log Workout / Workout History expose a way to read logged
-     * durations and reps from here — similar to how LocalProfileStore
-     * shares profile data across pages.
-     */
+
     private VBox buildWorkoutStatisticsCard() {
         VBox card = new VBox(4);
         card.setPadding(new Insets(24, 28, 24, 28));
@@ -638,146 +630,6 @@ public class ProfileDetailsView implements Page {
 
     // ---------- Step 2: fitness goals ----------
 
-    private Node buildStep2() {
-        Label errorLabel = new Label();
-        errorLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 12px;");
-        errorLabel.setVisible(false);
-
-        VBox card = new VBox(18);
-        card.setMaxWidth(760);
-        card.setPadding(new Insets(28, 32, 28, 32));
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; "
-                + "-fx-border-color: #e2e8f0; -fx-border-radius: 12;");
-
-        ToggleGroup goalGroup = new ToggleGroup();
-        HBox goalRow = new HBox(10);
-        for (LocalProfileStore.PrimaryGoal goal : LocalProfileStore.PrimaryGoal.values()) {
-            ToggleButton btn = new ToggleButton(goal.display);
-            btn.setUserData(goal);
-            btn.setToggleGroup(goalGroup);
-            btn.setMaxWidth(Double.MAX_VALUE);
-            btn.setPrefHeight(44);
-            HBox.setHgrow(btn, Priority.ALWAYS);
-            boolean selected = goal == store.primaryGoal;
-            styleGoalCard(btn, selected);
-            btn.selectedProperty().addListener((obs, was, isNow) -> styleGoalCard(btn, isNow));
-            if (selected) btn.setSelected(true);
-            goalRow.getChildren().add(btn);
-        }
-        VBox goalSection = new VBox(8, fieldLabel("Primary goal"), goalRow);
-
-        TextField targetWeightField = new TextField(store.targetWeightKg > 0 ? String.valueOf(store.targetWeightKg) : "");
-        targetWeightField.setPromptText("75");
-        targetWeightField.setPrefHeight(38);
-
-        ComboBox<Integer> weeklyWorkoutBox = new ComboBox<>();
-        for (int i = 1; i <= 7; i++) weeklyWorkoutBox.getItems().add(i);
-        weeklyWorkoutBox.setValue(store.weeklyWorkoutGoal);
-        weeklyWorkoutBox.setMaxWidth(Double.MAX_VALUE);
-        weeklyWorkoutBox.setPrefHeight(38);
-        weeklyWorkoutBox.setConverter(new StringConverter<>() {
-            @Override public String toString(Integer n) { return n == null ? "" : n + " workouts per week"; }
-            @Override public Integer fromString(String s) { return weeklyWorkoutBox.getValue(); }
-        });
-
-        GridPane row1 = twoColumnGrid();
-        row1.add(fieldLabel("Target weight (kg)"), 0, 0);
-        row1.add(fieldLabel("Weekly workout goal"), 1, 0);
-        row1.add(targetWeightField, 0, 1);
-        row1.add(weeklyWorkoutBox, 1, 1);
-
-        ComboBox<Integer> durationBox = new ComboBox<>();
-        for (int mins : new int[]{60, 120, 180, 240, 300, 360}) durationBox.getItems().add(mins);
-        durationBox.setValue(store.weeklyExerciseDurationMinutes);
-        durationBox.setMaxWidth(Double.MAX_VALUE);
-        durationBox.setPrefHeight(38);
-        durationBox.setConverter(new StringConverter<>() {
-            @Override public String toString(Integer n) { return n == null ? "" : n + " minutes"; }
-            @Override public Integer fromString(String s) { return durationBox.getValue(); }
-        });
-
-        ComboBox<LocalProfileStore.FitnessLevel> experienceBox = new ComboBox<>();
-        experienceBox.getItems().addAll(LocalProfileStore.FitnessLevel.values());
-        experienceBox.setValue(store.experienceLevel);
-        experienceBox.setMaxWidth(Double.MAX_VALUE);
-        experienceBox.setPrefHeight(38);
-        experienceBox.setConverter(fitnessConverter(experienceBox));
-
-        GridPane row2 = twoColumnGrid();
-        row2.add(fieldLabel("Weekly exercise duration"), 0, 0);
-        row2.add(fieldLabel("Experience level"), 1, 0);
-        row2.add(durationBox, 0, 1);
-        row2.add(experienceBox, 1, 1);
-
-        VBox typesSection = new VBox(8, fieldLabel("Preferred workout types"),
-                buildChipRow(WORKOUT_TYPES, store.preferredWorkoutTypes));
-        VBox daysSection = new VBox(8, fieldLabel("Preferred workout days"),
-                buildChipRow(WORKOUT_DAYS, store.preferredWorkoutDays));
-
-        Button backButton = new Button("Back");
-        backButton.setMaxWidth(Double.MAX_VALUE);
-        backButton.setPrefHeight(42);
-        backButton.setStyle("-fx-background-color: transparent; -fx-text-fill: " + ACCENT
-                + "; -fx-border-color: " + ACCENT + "; -fx-border-radius: 4; -fx-background-radius: 4; -fx-font-size: 14px;");
-        backButton.setOnAction(e -> container.getChildren().setAll(buildStep1()));
-
-        Button completeButton = new Button("Complete profile");
-        completeButton.setMaxWidth(Double.MAX_VALUE);
-        completeButton.setPrefHeight(42);
-        completeButton.setStyle("-fx-background-color: " + ACCENT + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
-        completeButton.setOnAction(e -> {
-            LocalProfileStore.PrimaryGoal goal = (LocalProfileStore.PrimaryGoal) (goalGroup.getSelectedToggle() != null
-                    ? goalGroup.getSelectedToggle().getUserData() : null);
-            String targetWeightText = targetWeightField.getText().trim();
-
-            if (goal == null || targetWeightText.isEmpty()) {
-                errorLabel.setText("Please choose a primary goal and enter a target weight.");
-                errorLabel.setVisible(true);
-                return;
-            }
-            if (store.preferredWorkoutTypes.isEmpty() || store.preferredWorkoutDays.isEmpty()) {
-                errorLabel.setText("Pick at least one workout type and one workout day.");
-                errorLabel.setVisible(true);
-                return;
-            }
-            try {
-                double newTargetWeight = Double.parseDouble(targetWeightText);
-                if (newTargetWeight <= 0) {
-                    errorLabel.setText("Target weight must be a positive number.");
-                    errorLabel.setVisible(true);
-                    return;
-                }
-
-                store.primaryGoal = goal;
-                store.targetWeightKg = newTargetWeight;
-                store.weeklyWorkoutGoal = weeklyWorkoutBox.getValue();
-                store.weeklyExerciseDurationMinutes = durationBox.getValue();
-                store.experienceLevel = experienceBox.getValue();
-                new ProfileDAO().save(store);   // persist profile + goals
-
-                container.getChildren().setAll(buildDetailsView());
-
-            } catch (NumberFormatException ex) {
-                errorLabel.setText("Target weight must be a valid number.");
-                errorLabel.setVisible(true);
-            }
-        });
-
-        HBox buttonRow = new HBox(12, backButton, completeButton);
-        HBox.setHgrow(backButton, Priority.ALWAYS);
-        HBox.setHgrow(completeButton, Priority.ALWAYS);
-
-        Label reassurance = new Label("You can update these goals later from your profile.");
-        reassurance.setStyle("-fx-font-size: 11px; -fx-text-fill: " + MUTED_COLOR + ";");
-        HBox reassuranceRow = new HBox(reassurance);
-        reassuranceRow.setAlignment(Pos.CENTER);
-
-        card.getChildren().addAll(goalSection, row1, row2, typesSection, daysSection, errorLabel, buttonRow, reassuranceRow);
-
-        return wizardShell("Set your fitness goals", "Step 2 of 2", 1.0,
-                "Choose your goals and preferences to personalise your fitness plan.", card);
-    }
-
     private GridPane twoColumnGrid() {
         GridPane grid = new GridPane();
         grid.setHgap(24);
@@ -799,24 +651,6 @@ public class ProfileDetailsView implements Page {
             btn.setStyle("-fx-background-color: white; -fx-text-fill: " + TITLE_COLOR + "; "
                     + "-fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6;");
         }
-    }
-
-    private Node buildChipRow(String[] options, java.util.Set<String> selectedSet) {
-        HBox row = new HBox(8);
-        for (String option : options) {
-            ToggleButton chip = new ToggleButton(option);
-            boolean isSelected = selectedSet.contains(option);
-            chip.setSelected(isSelected);
-            chip.setPrefHeight(34);
-            styleChip(chip, isSelected);
-            chip.selectedProperty().addListener((obs, was, isNow) -> {
-                styleChip(chip, isNow);
-                if (isNow) selectedSet.add(option);
-                else selectedSet.remove(option);
-            });
-            row.getChildren().add(chip);
-        }
-        return row;
     }
 
     private void styleChip(ToggleButton chip, boolean selected) {

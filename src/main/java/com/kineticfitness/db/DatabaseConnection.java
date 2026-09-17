@@ -93,13 +93,13 @@ public class DatabaseConnection {
             """);
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS profiles (
-                    id INTEGER PRIMARY KEY,
+                    username TEXT PRIMARY KEY,
                     first_name TEXT, email TEXT, gender TEXT, photo_path TEXT,
                     date_of_birth TEXT, height_cm REAL, weight_kg REAL, fitness_level TEXT,
                     primary_goal TEXT, target_weight_kg REAL, weekly_workout_goal INTEGER,
                     weekly_duration_minutes INTEGER, experience_level TEXT,
                     preferred_types TEXT, preferred_days TEXT,
-                    goal_start_date TEXT, goal_target_date TEXT, goal_achieved_date TEXT
+                    goal_start_date TEXT, goal_target_date TEXT
                 )
             """);
         }
