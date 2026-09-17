@@ -22,7 +22,7 @@ public class MealLogView implements Page {
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 10;"
             + " -fx-border-color: #E2E8F0; -fx-border-radius: 10;";
 
-    private final DailyLog dailyLog = new DailyLog(LocalDate.now());
+    private final DailyLog dailyLog = MealStore.getInstance().today();
     private final VBox mealListBox = new VBox(6);
     private final Label totalsLabel = new Label();
 
