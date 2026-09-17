@@ -15,21 +15,16 @@ public class ProfileDAO {
 
     private final UserDAO userDAO = new UserDAO();
 
-    public void save(LocalProfileStore s) {
-        String username = currentUsername();
-        if (username == null) {
-            System.err.println("No signed-in user, profile not saved.");
-            return;
-        }
+    public void save(LocalProfileStore s, String username) {
         Connection conn = DatabaseConnection.getInstance();
         String sql = """
-            INSERT INTO profiles (username, first_name, email, gender, photo_path, date_of_birth,
+            INSERT INTO profiles (id, first_name, email, gender, photo_path, date_of_birth,
                                   height_cm, weight_kg, fitness_level, primary_goal, target_weight_kg,
                                   weekly_workout_goal, weekly_duration_minutes, experience_level,
                                   preferred_types, preferred_days,
                                   goal_start_date, goal_target_date, goal_achieved_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(username) DO UPDATE SET
+            VALUES ((SELECT id FROM users WHERE username = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
                 first_name = excluded.first_name, email = excluded.email, gender = excluded.gender,
                 photo_path = excluded.photo_path, date_of_birth = excluded.date_of_birth,
                 height_cm = excluded.height_cm, weight_kg = excluded.weight_kg,
@@ -67,15 +62,9 @@ public class ProfileDAO {
         }
     }
 
-    public boolean load(LocalProfileStore s) {
-        // Always start from a clean store: a previous account's data must never survive
-        // into this one, and a user with no saved profile must load as empty.
-        s.reset();
-        String username = currentUsername();
-        if (username == null) return false;
-
+    public boolean load(LocalProfileStore s, String username) {
         Connection conn = DatabaseConnection.getInstance();
-        try (PreparedStatement st = conn.prepareStatement("SELECT * FROM profiles WHERE username = ?")) {
+        try (PreparedStatement st = conn.prepareStatement("SELECT * FROM profiles WHERE id = (SELECT id FROM users WHERE username = ?)")) {
             st.setString(1, username);
             ResultSet rs = st.executeQuery();
             if (rs.next()) {
@@ -121,15 +110,11 @@ public class ProfileDAO {
         return new User(username, level, age, s.heightCm, s.weightKg);
     }
 
-    private String currentUsername() {
-        return UserSession.getCurrentUser() == null ? null : UserSession.getCurrentUser().getUsername();
+    private java.time.LocalDate parseDate(String v) {
+        return (v == null || v.isEmpty()) ? null : java.time.LocalDate.parse(v);
     }
 
     private String orEmpty(String v) { return v == null ? "" : v; }
-
-    private LocalDate parseDate(String v) {
-        return (v == null || v.isEmpty()) ? null : LocalDate.parse(v);
-    }
 
     private void fillSet(java.util.Set<String> set, String joined) {
         set.clear();

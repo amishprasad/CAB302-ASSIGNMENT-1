@@ -81,7 +81,13 @@ public class ProfileDetailsView implements Page {
         return page;
     }
 
-
+    /**
+     * TODO: no real workout data is available to ProfileView yet. This
+     * shows the empty state (matching the reference design) until
+     * Log Workout / Workout History expose a way to read logged
+     * durations and reps from here — similar to how LocalProfileStore
+     * shares profile data across pages.
+     */
     private VBox buildWorkoutStatisticsCard() {
         VBox card = new VBox(4);
         card.setPadding(new Insets(24, 28, 24, 28));
@@ -479,7 +485,7 @@ public class ProfileDetailsView implements Page {
 
     private Node buildStep1() {
         TextField firstNameField = new TextField(store.firstName);
-        firstNameField.setPromptText("Alex");
+        firstNameField.setPromptText("Alex Taylor");
         firstNameField.setMaxWidth(Double.MAX_VALUE);
         firstNameField.setPrefHeight(38);
 
@@ -547,7 +553,7 @@ public class ProfileDetailsView implements Page {
         grid.add(fieldLabel("Profile photo"), 0, 0, 2, 1);
         grid.add(photoRow, 0, 1, 2, 1);
 
-        grid.add(fieldLabel("First name"), 0, 2);
+        grid.add(fieldLabel("Full name"), 0, 2);
         grid.add(fieldLabel("Email"), 1, 2);
         grid.add(firstNameField, 0, 3);
         grid.add(emailField, 1, 3);
@@ -613,7 +619,7 @@ public class ProfileDetailsView implements Page {
                 store.fitnessLevel = level;
                 store.experienceLevel = level; // default until goals are set
 
-                new ProfileDAO().save(store);
+                new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());
                 refresh();
 
             } catch (NumberFormatException ex) {
@@ -742,7 +748,7 @@ public class ProfileDetailsView implements Page {
         grid.add(fieldLabel("Profile photo"), 0, 0, 2, 1);
         grid.add(photoRow, 0, 1, 2, 1);
 
-        grid.add(fieldLabel("First name"), 0, 2);
+        grid.add(fieldLabel("Full name"), 0, 2);
         grid.add(fieldLabel("Email"), 1, 2);
         grid.add(firstNameField, 0, 3);
         grid.add(emailField, 1, 3);
@@ -794,7 +800,7 @@ public class ProfileDetailsView implements Page {
                 store.heightCm = newHeight;
                 store.weightKg = newWeight;
                 store.fitnessLevel = fitnessBox.getValue();
-                new ProfileDAO().save(store);   // persist edits
+                new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());   // persist edits
 
                 container.getChildren().setAll(buildDetailsView());
 

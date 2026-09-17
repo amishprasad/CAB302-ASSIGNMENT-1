@@ -41,8 +41,12 @@ public class LocalProfileStore {
     public LocalDate goalTargetDate = null;
     /** Set when the goal is completed; null while it is still active. */
     public LocalDate goalAchievedDate = null;
-    /** Wipes every field back to defaults, so a different account starts clean. */
-    public void reset() {
+
+    /**
+     * Resets every field to its default. Called when a user signs in or out, so one
+     * account's details can never be shown to the next person to log in.
+     */
+    public void clear() {
         firstName = "";
         email = "";
         gender = null;
@@ -68,12 +72,14 @@ public class LocalProfileStore {
         return dateOfBirth != null;
     }
 
-    public boolean hasGoals() {
-        return primaryGoal != null;
-    }
     public boolean isGoalAchieved() {
         return primaryGoal != null && goalAchievedDate != null;
     }
+
+    public boolean hasGoals() {
+        return primaryGoal != null;
+    }
+
     // ---- Milestone goals (Goals page) ----
     public final java.util.List<Milestone> milestones = new java.util.ArrayList<>();
 

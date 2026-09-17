@@ -10,13 +10,13 @@ public class DatabaseConnection {
     private static String url = "jdbc:sqlite:kineticfitness.db";
     private static Connection instance = null;
 
-
+    /** For tests: point at a different database (e.g. "jdbc:sqlite::memory:"). Call before getInstance(). */
     public static void configure(String customUrl) {
         reset();
         url = customUrl;
     }
 
-
+    /** Closes the current connection so the next getInstance() opens a fresh one. */
     public static void reset() {
         if (instance != null) {
             try { instance.close(); } catch (SQLException ignored) {}
@@ -29,6 +29,7 @@ public class DatabaseConnection {
             try {
                 instance = DriverManager.getConnection(url);   // note: url, not URL
                 createTables(instance);
+                ScheduleDAO.migrate(instance);   // upgrades a pre-existing schedule table in place
             } catch (SQLException e) {
                 System.err.println("Failed to connect to database: " + e.getMessage());
             }
@@ -87,19 +88,21 @@ public class DatabaseConnection {
                     workout_name TEXT NOT NULL,
                     workout_date TEXT NOT NULL,
                     start_time TEXT NOT NULL,
-                    duration TEXT NOT NULL,
+                    duration_minutes INTEGER NOT NULL DEFAULT 60,
+                    status TEXT NOT NULL DEFAULT 'SCHEDULED',
+                    reminder_minutes INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (user_id) REFERENCES users(id)
-            )
+                )
             """);
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS profiles (
-                    username TEXT PRIMARY KEY,
+                    id INTEGER PRIMARY KEY,
                     first_name TEXT, email TEXT, gender TEXT, photo_path TEXT,
                     date_of_birth TEXT, height_cm REAL, weight_kg REAL, fitness_level TEXT,
                     primary_goal TEXT, target_weight_kg REAL, weekly_workout_goal INTEGER,
                     weekly_duration_minutes INTEGER, experience_level TEXT,
                     preferred_types TEXT, preferred_days TEXT,
-                    goal_start_date TEXT, goal_target_date TEXT
+                    goal_start_date TEXT, goal_target_date TEXT, goal_achieved_date TEXT
                 )
             """);
         }

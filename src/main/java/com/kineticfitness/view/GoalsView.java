@@ -33,6 +33,13 @@ public class GoalsView implements Page {
     private final LocalProfileStore store = LocalProfileStore.getInstance();
     private final ProfileDAO profileDAO = new ProfileDAO();
 
+    /** Persists the shared store against the signed-in account. */
+    private void saveProfile() {
+        com.kineticfitness.model.User user = com.kineticfitness.session.UserSession.getCurrentUser();
+        if (user == null) return;
+        profileDAO.save(store, user.getUsername());
+    }
+
     @Override
     public String label() {
         return "Goals";
@@ -298,7 +305,7 @@ public class GoalsView implements Page {
                 store.goalTargetDate = targetDate;
                 store.goalAchievedDate = null;
 
-                profileDAO.save(store);
+                saveProfile();
                 errorLabel.setVisible(false);
                 errorLabel.setManaged(false);
                 savedLabel.setManaged(true);
@@ -591,7 +598,7 @@ public class GoalsView implements Page {
                 + "; -fx-font-weight: bold; -fx-font-size: 13px; -fx-background-radius: 8;");
         markDone.setOnAction(e -> {
             store.goalAchievedDate = java.time.LocalDate.now();
-            profileDAO.save(store);
+            saveProfile();
             refresh();
         });
 
@@ -610,7 +617,7 @@ public class GoalsView implements Page {
         store.goalStartDate = null;
         store.goalTargetDate = null;
         store.goalAchievedDate = null;
-        profileDAO.save(store);
+        saveProfile();
     }
 
     /**
@@ -637,7 +644,7 @@ public class GoalsView implements Page {
         }
         if (reached) {
             store.goalAchievedDate = java.time.LocalDate.now();
-            profileDAO.save(store);
+            saveProfile();
         }
     }
 
