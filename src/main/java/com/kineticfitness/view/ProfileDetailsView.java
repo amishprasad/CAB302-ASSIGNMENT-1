@@ -752,7 +752,7 @@ public class ProfileDetailsView implements Page {
                 store.weeklyWorkoutGoal = weeklyWorkoutBox.getValue();
                 store.weeklyExerciseDurationMinutes = durationBox.getValue();
                 store.experienceLevel = experienceBox.getValue();
-                new ProfileDAO().save(store);   // persist profile + goals
+                new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());   // persist profile + goals
 
                 container.getChildren().setAll(buildDetailsView());
 
@@ -959,7 +959,7 @@ public class ProfileDetailsView implements Page {
                 store.heightCm = newHeight;
                 store.weightKg = newWeight;
                 store.fitnessLevel = fitnessBox.getValue();
-                new ProfileDAO().save(store);   // persist edits
+                new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());   // persist edits
 
                 container.getChildren().setAll(buildDetailsView());
 
