@@ -129,4 +129,30 @@ public class WorkoutDAO {
             System.err.println("Failed to delete exercise: " + e.getMessage());
         }
     }
+
+    /** Used by the Settings page's "Clear All Data" action. Deletes every workout and
+     *  exercise belonging to the given user. Does not touch their account, goals (those
+     *  live in LocalProfileStore, not the database), or scheduled workouts. */
+    public void deleteAllForUser(String username) {
+        Connection connection = DatabaseConnection.getInstance();
+        String deleteExercises = """
+            DELETE FROM exercises WHERE workout_id IN (
+                SELECT w.id FROM workouts w JOIN users u ON u.id = w.user_id WHERE u.username = ?
+            )
+            """;
+        String deleteWorkouts = "DELETE FROM workouts WHERE user_id = (SELECT id FROM users WHERE username = ?)";
+
+        try (PreparedStatement statement = connection.prepareStatement(deleteExercises)) {
+            statement.setString(1, username);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to delete exercises: " + e.getMessage());
+        }
+        try (PreparedStatement statement = connection.prepareStatement(deleteWorkouts)) {
+            statement.setString(1, username);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to delete workouts: " + e.getMessage());
+        }
+    }
 }
