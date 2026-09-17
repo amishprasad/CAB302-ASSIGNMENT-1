@@ -249,7 +249,7 @@ public class DashboardView implements Page {
         } else {
             for (ScheduledWorkout item : scheduled.subList(0, Math.min(PREVIEW_ROWS, scheduled.size()))) {
                 rows.getChildren().add(row(item.getName(),
-                        item.getDate() + " · " + item.getTime() + " · " + item.getDuration()));
+                        item.getDate().format(SHORT_DATE) + " · " + item.getStartTime() + " · " + item.durationLabel()));
             }
         }
         return sectionCard("Upcoming Schedule", rows);
