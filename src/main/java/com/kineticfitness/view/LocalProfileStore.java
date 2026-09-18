@@ -35,6 +35,13 @@ public class LocalProfileStore {
     public final Set<String> preferredWorkoutTypes = new LinkedHashSet<>();
     public final Set<String> preferredWorkoutDays = new LinkedHashSet<>();
 
+    /** Set automatically the first time a goal is saved; preserved across edits. */
+    public LocalDate goalStartDate = null;
+    /** The deadline the user picked for the goal. */
+    public LocalDate goalTargetDate = null;
+    /** Set when the goal is completed; null while it is still active. */
+    public LocalDate goalAchievedDate = null;
+
     /**
      * Resets every field to its default. Called when a user signs in or out, so one
      * account's details can never be shown to the next person to log in.
@@ -55,11 +62,18 @@ public class LocalProfileStore {
         experienceLevel = FitnessLevel.BEGINNER;
         preferredWorkoutTypes.clear();
         preferredWorkoutDays.clear();
+        goalStartDate = null;
+        goalTargetDate = null;
+        goalAchievedDate = null;
         milestones.clear();
     }
 
     public boolean hasPersonalDetails() {
         return dateOfBirth != null;
+    }
+
+    public boolean isGoalAchieved() {
+        return primaryGoal != null && goalAchievedDate != null;
     }
 
     public boolean hasGoals() {

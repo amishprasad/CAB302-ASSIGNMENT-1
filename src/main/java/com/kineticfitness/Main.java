@@ -24,7 +24,10 @@ public class Main extends Application {
                 user -> {
                     UserSession.setCurrentUser(user);
                     loadProfileFor(user.getUsername());
-                    launchApp(stage);
+                    // A brand-new account has no saved profile, so send them
+                    // to Profile to create one instead of an empty Dashboard.
+                    boolean hasProfile = LocalProfileStore.getInstance().hasPersonalDetails();
+                    launchApp(stage, hasProfile ? "Dashboard" : "Profile");
                 },
                 () -> showRegister(stage),
                 infoMessage
@@ -39,7 +42,7 @@ public class Main extends Application {
         ).show();
     }
 
-    private void launchApp(Stage stage) {
+    private void launchApp(Stage stage, String startLabel) {
         new AppShell(stage)
                 .add(new DashboardView())
                 .add(new ProfileDetailsView())
@@ -57,7 +60,7 @@ public class Main extends Application {
                     LocalProfileStore.getInstance().clear();
                     showLogin(stage, null);
                 })
-                .show();
+                .show(startLabel);
     }
 
     /**

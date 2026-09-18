@@ -24,10 +24,7 @@ import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
 
-/**
- * Screen for logging a single workout: add exercises (name / sets / reps),
- * see them listed, watch the running total of reps update live, and save to User history.
- */
+
 
 public class LogWorkoutView implements Page {
 

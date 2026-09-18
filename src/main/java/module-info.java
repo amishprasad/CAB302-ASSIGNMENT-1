@@ -1,7 +1,6 @@
 module com.kineticfitness {
     requires javafx.controls;
     requires java.sql;
-    requires kotlin.stdlib;
 
     exports com.kineticfitness;
     exports com.kineticfitness.model;

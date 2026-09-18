@@ -1,25 +1,38 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.db.WorkoutDAO;
+import com.kineticfitness.model.User;
+import com.kineticfitness.model.Workout;
+import com.kineticfitness.session.UserSession;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
- * Progress & Analytics page: summarises training volume, body-metric trends, and goal
- * completion so a user can see how their training is tracking over time. Implements
- * {@link Page} so it plugs into the {@link AppShell} — the shell provides the sidebar,
- * this class provides only the centre content.
+ * Progress & Analytics page: summarises real training volume, current body metrics, and
+ * goal completion for the signed-in user. Data comes from {@link WorkoutDAO} (workouts
+ * table) and the shared {@link LocalProfileStore} milestones list (the same store the
+ * Goals page reads and writes, so both pages always agree). Implements {@link Page} so
+ * it plugs into the {@link AppShell} — the shell provides the sidebar, this class
+ * provides only the centre content.
  */
 public class ProgressAnalyticsView implements Page {
 
@@ -30,31 +43,9 @@ public class ProgressAnalyticsView implements Page {
     private static final String BORDER = "#E2E8F0";
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 10;"
             + " -fx-border-color: " + BORDER + "; -fx-border-radius: 10;";
+    private static final int WEEKS_SHOWN = 8;
 
-    private record WeeklyVolume(String week, int totalReps) {}
-    private record WeightPoint(String weekLabel, double weightKg) {}
-    private record GoalSummary(String description, int current, int target) {}
-
-    private final List<WeeklyVolume> weeklyVolume = List.of(
-            new WeeklyVolume("Wk 1", 980),
-            new WeeklyVolume("Wk 2", 1120),
-            new WeeklyVolume("Wk 3", 1050),
-            new WeeklyVolume("Wk 4", 1340),
-            new WeeklyVolume("Wk 5", 1290),
-            new WeeklyVolume("Wk 6", 1480));
-
-    private final List<WeightPoint> weightTrend = List.of(
-            new WeightPoint("Wk 1", 81.5),
-            new WeightPoint("Wk 2", 80.9),
-            new WeightPoint("Wk 3", 80.4),
-            new WeightPoint("Wk 4", 79.8),
-            new WeightPoint("Wk 5", 79.3),
-            new WeightPoint("Wk 6", 79.0));
-
-    private final List<GoalSummary> goalSummaries = List.of(
-            new GoalSummary("Run 100 km this quarter", 62, 100),
-            new GoalSummary("Bench press bodyweight", 75, 90),
-            new GoalSummary("Log 40 workouts", 28, 40));
+    private final WorkoutDAO workoutDAO = new WorkoutDAO();
 
     @Override
     public String label() {
@@ -63,6 +54,13 @@ public class ProgressAnalyticsView implements Page {
 
     @Override
     public Node getContent() {
+        User currentUser = UserSession.getCurrentUser();
+        if (currentUser == null) {
+            return emptyState("Sign in to see your progress.");
+        }
+
+        List<Workout> workouts = workoutDAO.findAllByUsername(currentUser.getUsername());
+
         Label title = new Label("Progress & Analytics");
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
@@ -70,26 +68,69 @@ public class ProgressAnalyticsView implements Page {
         subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + SUBTITLE + ";");
 
         VBox content = new VBox(16, title, subtitle,
-                buildStatRow(), buildVolumeChartCard(), buildWeightChartCard(), buildGoalsCard());
+                buildStatRow(workouts), buildVolumeChartCard(workouts),
+                buildBodyMetricsCard(), buildGoalsCard());
         content.setPadding(new Insets(32, 40, 32, 40));
         content.setStyle("-fx-background-color: " + CONTENT_BG + ";");
-        return content;
+
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: " + CONTENT_BG + "; -fx-background: " + CONTENT_BG + ";");
+        return scroll;
     }
 
-    private HBox buildStatRow() {
-        int totalWorkouts = weeklyVolume.size() * 4;
-        int totalReps = weeklyVolume.stream().mapToInt(WeeklyVolume::totalReps).sum();
-        int goalsAchieved = (int) goalSummaries.stream().filter(g -> g.current() >= g.target()).count();
+    private Node emptyState(String message) {
+        Label label = new Label(message);
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + SUBTITLE + ";");
+        VBox box = new VBox(label);
+        box.setPadding(new Insets(32, 40, 32, 40));
+        box.setStyle("-fx-background-color: " + CONTENT_BG + ";");
+        return box;
+    }
+
+    // ---- Stats --------------------------------------------------------
+
+    private HBox buildStatRow(List<Workout> workouts) {
+        int totalWorkouts = workouts.size();
+        int totalReps = workouts.stream().mapToInt(Workout::totalReps).sum();
+        List<LocalProfileStore.Milestone> milestones = LocalProfileStore.getInstance().milestones;
+        long goalsAchieved = milestones.stream().filter(LocalProfileStore.Milestone::isAchieved).count();
+        int streak = currentStreak(workouts);
 
         HBox row = new HBox(16,
                 statCard("Total Workouts", String.valueOf(totalWorkouts)),
                 statCard("Total Reps", String.valueOf(totalReps)),
-                statCard("Goals Achieved", goalsAchieved + " / " + goalSummaries.size()),
-                statCard("Current Streak", "6 days"));
+                statCard("Goals Achieved", goalsAchieved + " / " + milestones.size()),
+                statCard("Current Streak", streak + (streak == 1 ? " day" : " days")));
         for (Node node : row.getChildren()) {
             HBox.setHgrow(node, Priority.ALWAYS);
         }
         return row;
+    }
+
+    /** Consecutive days with at least one workout, counting back from the most recent workout day. */
+    private int currentStreak(List<Workout> workouts) {
+        Set<LocalDate> days = new TreeSet<>();
+        for (Workout w : workouts) {
+            days.add(w.getDate());
+        }
+        if (days.isEmpty()) {
+            return 0;
+        }
+        List<LocalDate> descending = new ArrayList<>(days);
+        java.util.Collections.reverse(descending);
+
+        int streak = 1;
+        LocalDate cursor = descending.get(0);
+        for (int i = 1; i < descending.size(); i++) {
+            if (descending.get(i).equals(cursor.minusDays(1))) {
+                streak++;
+                cursor = descending.get(i);
+            } else {
+                break;
+            }
+        }
+        return streak;
     }
 
     private VBox statCard(String label, String value) {
@@ -106,7 +147,9 @@ public class ProgressAnalyticsView implements Page {
         return card;
     }
 
-    private VBox buildVolumeChartCard() {
+    // ---- Weekly volume chart -------------------------------------------
+
+    private VBox buildVolumeChartCard(List<Workout> workouts) {
         Label header = new Label("Weekly Training Volume");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
@@ -123,8 +166,8 @@ public class ProgressAnalyticsView implements Page {
         chart.setAnimated(false);
 
         XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (WeeklyVolume w : weeklyVolume) {
-            series.getData().add(new XYChart.Data<>(w.week(), w.totalReps()));
+        for (WeekBucket bucket : weeklyBuckets(workouts)) {
+            series.getData().add(new XYChart.Data<>(bucket.label, bucket.totalReps));
         }
         chart.getData().add(series);
 
@@ -134,42 +177,74 @@ public class ProgressAnalyticsView implements Page {
         return card;
     }
 
-    private VBox buildWeightChartCard() {
-        Label header = new Label("Body Weight Trend");
+    private record WeekBucket(String label, int totalReps) {}
+
+    /** Buckets real workout reps into the last {@value WEEKS_SHOWN} calendar weeks (Mon–Sun), oldest first. */
+    private List<WeekBucket> weeklyBuckets(List<Workout> workouts) {
+        DateTimeFormatter labelFormat = DateTimeFormatter.ofPattern("MMM d");
+        LocalDate thisWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+        List<WeekBucket> buckets = new ArrayList<>();
+        for (int i = WEEKS_SHOWN - 1; i >= 0; i--) {
+            LocalDate weekStart = thisWeekStart.minusWeeks(i);
+            LocalDate weekEnd = weekStart.plusDays(6);
+            int reps = 0;
+            for (Workout w : workouts) {
+                LocalDate d = w.getDate();
+                if (!d.isBefore(weekStart) && !d.isAfter(weekEnd)) {
+                    reps += w.totalReps();
+                }
+            }
+            buckets.add(new WeekBucket(weekStart.format(labelFormat), reps));
+        }
+        return buckets;
+    }
+
+    // ---- Body metrics (single current snapshot — no historical log exists yet) ------
+
+    private VBox buildBodyMetricsCard() {
+        Label header = new Label("Current Body Metrics");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
-        Label helper = new Label("Logged body weight over the last six weeks.");
-        helper.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
+        LocalProfileStore profile = LocalProfileStore.getInstance();
+        double weight = profile.weightKg;
+        double height = profile.heightCm;
+        double bmi = (height > 0) ? weight / Math.pow(height / 100.0, 2) : 0;
 
-        CategoryAxis xAxis = new CategoryAxis();
-        NumberAxis yAxis = new NumberAxis();
-        yAxis.setLabel("Weight (kg)");
-
-        LineChart<String, Number> chart = new LineChart<>(xAxis, yAxis);
-        chart.setLegendVisible(false);
-        chart.setPrefHeight(240);
-        chart.setAnimated(false);
-        chart.setCreateSymbols(true);
-
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (WeightPoint p : weightTrend) {
-            series.getData().add(new XYChart.Data<>(p.weekLabel(), p.weightKg()));
+        HBox row = new HBox(16,
+                statCard("Weight", weight > 0 ? String.format("%.1f kg", weight) : "—"),
+                statCard("Height", height > 0 ? String.format("%.0f cm", height) : "—"),
+                statCard("BMI", bmi > 0 ? String.format("%.1f", bmi) : "—"));
+        for (Node node : row.getChildren()) {
+            HBox.setHgrow(node, Priority.ALWAYS);
         }
-        chart.getData().add(series);
 
-        VBox card = new VBox(10, header, helper, chart);
+        Label note = new Label("From your Profile page. Historical weight trends aren't tracked yet.");
+        note.setStyle("-fx-font-size: 11px; -fx-text-fill: " + SUBTITLE + ";");
+
+        VBox card = new VBox(10, header, row, note);
         card.setPadding(new Insets(20));
         card.setStyle(CARD);
         return card;
     }
+
+    // ---- Goals (shared live data with the Goals page) -------------------
 
     private VBox buildGoalsCard() {
         Label header = new Label("Goal Completion");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
+        List<LocalProfileStore.Milestone> milestones = LocalProfileStore.getInstance().milestones;
+
         VBox list = new VBox(14);
-        for (GoalSummary goal : goalSummaries) {
-            list.getChildren().add(buildGoalRow(goal));
+        if (milestones.isEmpty()) {
+            Label empty = new Label("No goals yet — create one on the Goals page to see it here.");
+            empty.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
+            list.getChildren().add(empty);
+        } else {
+            for (LocalProfileStore.Milestone milestone : milestones) {
+                list.getChildren().add(buildGoalRow(milestone));
+            }
         }
 
         VBox card = new VBox(12, header, list);
@@ -178,14 +253,15 @@ public class ProgressAnalyticsView implements Page {
         return card;
     }
 
-    private VBox buildGoalRow(GoalSummary goal) {
-        double fraction = goal.target() == 0 ? 0 : Math.min(1.0, goal.current() / (double) goal.target());
+    private VBox buildGoalRow(LocalProfileStore.Milestone milestone) {
+        double fraction = milestone.progressPercent() / 100.0;
 
-        Label nameLabel = new Label(goal.description());
+        Label nameLabel = new Label(milestone.description);
         nameLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TITLE + "; -fx-font-weight: bold;");
 
-        Label valueLabel = new Label(goal.current() + " / " + goal.target()
-                + String.format("  (%.0f%%)", fraction * 100));
+        Label valueLabel = new Label(String.format("%s / %s %s  (%d%%)",
+                trimNumber(milestone.currentValue), trimNumber(milestone.targetValue),
+                milestone.unit, milestone.progressPercent()));
         valueLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
 
         ProgressBar bar = new ProgressBar(fraction);
@@ -193,5 +269,12 @@ public class ProgressAnalyticsView implements Page {
         bar.setStyle("-fx-accent: " + ORANGE + ";");
 
         return new VBox(4, nameLabel, bar, valueLabel);
+    }
+
+    private String trimNumber(double value) {
+        if (value == Math.floor(value)) {
+            return String.valueOf((long) value);
+        }
+        return String.valueOf(value);
     }
 }
