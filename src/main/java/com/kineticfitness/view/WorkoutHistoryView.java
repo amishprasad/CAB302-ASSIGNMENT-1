@@ -18,12 +18,13 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.util.Callback;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -67,8 +68,11 @@ public class WorkoutHistoryView implements Page {
         BarChart<String, Number> chart = buildChart();
         VBox chartCard = buildChartCard(chart);
 
-        // Deleting a row changes the totals, so the chart is redrawn from what's left.
         TableView<Entry> table = buildTable(allEntries, remaining -> plotEntries(chart, remaining));
+        Button deleteButton = buildDeleteButton(table, allEntries, chart);
+
+        HBox actionBar = new HBox(deleteButton);
+        actionBar.setAlignment(Pos.CENTER_RIGHT);
 
         // One filter click updates both the chart and the table, so they never disagree.
         HBox filterChips = buildFilterChips(filtered -> {
@@ -78,7 +82,7 @@ public class WorkoutHistoryView implements Page {
 
         plotEntries(chart, allEntries);
 
-        VBox content = new VBox(16, title, subtitle, filterChips, chartCard, table);
+        VBox content = new VBox(16, title, subtitle, filterChips, chartCard, table, actionBar);
         content.setPadding(new Insets(32, 40, 32, 40));
         content.setStyle("-fx-background-color: " + CONTENT_BG + ";");
 
@@ -198,32 +202,57 @@ public class WorkoutHistoryView implements Page {
     }
     private TableView<Entry> buildTable(List<Entry> allEntries, Consumer<List<Entry>> onDataChanged) {
         TableView<Entry> table = new TableView<>();
+        table.setEditable(true);
 
         TableColumn<Entry, String> dateCol = new TableColumn<>("DATE");
         dateCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getDate()));
         dateCol.setStyle("-fx-text-fill: " + SUBTITLE + ";");
         dateCol.setPrefWidth(110);
+        dateCol.setEditable(false);
 
         TableColumn<Entry, String> exCol = new TableColumn<>("EXERCISE");
         exCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getExercise()));
         exCol.setStyle("-fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
         exCol.setPrefWidth(360);
+        exCol.setEditable(false);
 
         TableColumn<Entry, String> setsCol = new TableColumn<>("SETS");
         setsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getSets()));
         setsCol.setStyle("-fx-alignment: CENTER;");
         setsCol.setPrefWidth(90);
+        setsCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        setsCol.setOnEditCommit(ev -> {
+            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
+            if (!isPositiveInt(value)) {
+                table.refresh();
+                return;
+            }
+            Entry entry = ev.getRowValue();
+            entry.setSets(value);
+            saveEdit(entry);
+            table.refresh();
+            onDataChanged.accept(new ArrayList<>(table.getItems()));
+        });
 
         TableColumn<Entry, String> repsCol = new TableColumn<>("REPS");
         repsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getReps()));
         repsCol.setStyle("-fx-alignment: CENTER;");
         repsCol.setPrefWidth(110);
+        repsCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        repsCol.setOnEditCommit(ev -> {
+            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
+            if (!isPositiveInt(value)) {
+                table.refresh();
+                return;
+            }
+            Entry entry = ev.getRowValue();
+            entry.setReps(value);
+            saveEdit(entry);
+            table.refresh();
+            onDataChanged.accept(new ArrayList<>(table.getItems()));
+        });
 
-        TableColumn<Entry, Void> deleteCol = new TableColumn<>("");
-        deleteCol.setPrefWidth(100);
-        deleteCol.setCellFactory(deleteButtonCellFactory(table, allEntries, onDataChanged));
-
-        table.getColumns().addAll(dateCol, exCol, setsCol, repsCol, deleteCol);
+        table.getColumns().addAll(dateCol, exCol, setsCol, repsCol);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.setItems(FXCollections.observableArrayList(allEntries));
         table.setPrefHeight(340);
@@ -231,42 +260,74 @@ public class WorkoutHistoryView implements Page {
         table.setPlaceholder(new Label("No workouts logged for this filter yet."));
         table.setStyle("-fx-background-color: white; -fx-background-radius: 10;"
                 + " -fx-border-color: #E2E8F0; -fx-border-radius: 10;");
+
+        table.setRowFactory(tv -> {
+            TableRow<Entry> row = new TableRow<>();
+            row.setOnMouseClicked(ev -> {
+                if (row.isEmpty()) {
+                    table.getSelectionModel().clearSelection();
+                }
+            });
+            return row;
+        });
+        table.setOnKeyPressed(ev -> {
+            if (ev.getCode() == KeyCode.ESCAPE && table.getEditingCell() == null) {
+                table.getSelectionModel().clearSelection();
+            }
+        });
         return table;
     }
 
-    private Callback<TableColumn<Entry, Void>, TableCell<Entry, Void>> deleteButtonCellFactory(
-            TableView<Entry> table, List<Entry> allEntries, Consumer<List<Entry>> onDataChanged) {
-        return column -> new TableCell<>() {
-            private final Button deleteButton = new Button("Delete");
+    private static boolean isPositiveInt(String text) {
+        try {
+            return Integer.parseInt(text) > 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
 
-            {
-                deleteButton.setStyle("-fx-background-color: transparent; -fx-text-fill: #dc2626;"
-                        + " -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;");
-                deleteButton.setOnAction(e -> {
-                    Entry entry = getTableView().getItems().get(getIndex());
-                    if (entry.getExerciseId() != null) {
-                        new WorkoutDAO().deleteExercise(entry.getExerciseId());
-                    }
-                    table.getItems().remove(entry);
-                    allEntries.remove(entry);
-                    onDataChanged.accept(new ArrayList<>(table.getItems()));
-                });
-            }
+    private void saveEdit(Entry entry) {
+        if (entry.getExerciseId() == null) {
+            return;
+        }
+        new WorkoutDAO().updateExercise(
+                entry.getExerciseId(),
+                Integer.parseInt(entry.getSets()),
+                Integer.parseInt(entry.getReps()));
+    }
 
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                setGraphic(empty ? null : deleteButton);
+    private Button buildDeleteButton(TableView<Entry> table, List<Entry> allEntries,
+                                     BarChart<String, Number> chart) {
+        Button button = new Button("Delete Selected");
+        button.setPadding(new Insets(8, 20, 8, 20));
+        button.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white;"
+                + " -fx-font-weight: bold; -fx-font-size: 13px; -fx-background-radius: 8;"
+                + " -fx-cursor: hand;");
+
+        button.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
+
+        button.setOnAction(e -> {
+            Entry entry = table.getSelectionModel().getSelectedItem();
+            if (entry == null) {
+                return;
             }
-        };
+            if (entry.getExerciseId() != null) {
+                new WorkoutDAO().deleteExercise(entry.getExerciseId());
+            }
+            table.getItems().remove(entry);
+            allEntries.remove(entry);
+            table.getSelectionModel().clearSelection();
+            plotEntries(chart, new ArrayList<>(table.getItems()));
+        });
+        return button;
     }
 
     public static class Entry {
         private final Integer exerciseId;
         private final String date;
         private final String exercise;
-        private final String sets;
-        private final String reps;
+        private String sets;
+        private String reps;
         private final String bodyPart;
 
         public Entry(Integer exerciseId, String date, String exercise, String sets, String reps, String bodyPart) {
@@ -284,6 +345,9 @@ public class WorkoutHistoryView implements Page {
         public String getSets() { return sets; }
         public String getReps() { return reps; }
         public String getBodyPart() { return bodyPart; }
+
+        public void setSets(String sets) { this.sets = sets; }
+        public void setReps(String reps) { this.reps = reps; }
 
 
         public int totalReps() {

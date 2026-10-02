@@ -119,6 +119,19 @@ public class WorkoutDAO {
         return exercises;
     }
 
+    public void updateExercise(int exerciseId, int sets, int reps) {
+        Connection connection = DatabaseConnection.getInstance();
+        String sql = "UPDATE exercises SET sets = ?, reps = ? WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, sets);
+            statement.setInt(2, reps);
+            statement.setInt(3, exerciseId);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to update exercise: " + e.getMessage());
+        }
+    }
+
     public void deleteExercise(int exerciseId) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "DELETE FROM exercises WHERE id = ?";
