@@ -6,6 +6,7 @@ import com.kineticfitness.model.Exercise;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.util.SessionNames;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -40,6 +41,7 @@ public class LogWorkoutView implements Page {
         Workout workout = new Workout(LocalDate.now());
         ObservableList<Exercise> exerciseData = FXCollections.observableArrayList();
         TableView<Exercise> exerciseTable = new TableView<>();
+        TextField sessionNameField = new TextField();
         TextField nameField = new TextField();
         TextField setsField = new TextField();
         TextField repsField = new TextField();
@@ -52,7 +54,7 @@ public class LogWorkoutView implements Page {
         content.setPadding(new Insets(24));
 
         content.getChildren().addAll(
-                buildExercisePanel(exerciseTable, exerciseData, statusLabel, workout, isSaved),
+                buildExercisePanel(exerciseTable, exerciseData, statusLabel, workout, isSaved, sessionNameField),
                 buildAddExercisePanel(nameField, setsField, repsField, bodyPartCombo, exerciseData, statusLabel));
 
         return content;
@@ -61,7 +63,8 @@ public class LogWorkoutView implements Page {
     // ---------- Content ----------
 
     private VBox buildExercisePanel(TableView<Exercise> exerciseTable, ObservableList<Exercise> exerciseData,
-                                    Label statusLabel, Workout workout, boolean[] isSaved) {
+                                    Label statusLabel, Workout workout, boolean[] isSaved,
+                                    TextField sessionNameField) {
         VBox panel = new VBox(12);
         panel.getStyleClass().add("card");
         HBox.setHgrow(panel, Priority.ALWAYS);
@@ -71,6 +74,10 @@ public class LogWorkoutView implements Page {
 
         Label subtitle = new Label("Record each exercise, its sets/reps, and the body part it targets.");
         subtitle.getStyleClass().add("page-subtitle");
+
+        Label sessionNameLabel = new Label("Session Name");
+        sessionNameLabel.getStyleClass().add("field-label");
+        sessionNameField.setPromptText("e.g. Push Day (optional)");
 
         setupTableColumns(exerciseTable);
         exerciseTable.setItems(exerciseData);
@@ -85,12 +92,13 @@ public class LogWorkoutView implements Page {
 
         Button saveButton = new Button("Save Workout Session");
         saveButton.getStyleClass().add("btn-primary");
-        saveButton.setOnAction(e -> handleSaveWorkout(exerciseData, statusLabel, workout, isSaved));
+        saveButton.setOnAction(e -> handleSaveWorkout(
+                exerciseData, statusLabel, workout, isSaved, sessionNameField));
 
         HBox actionRow = new HBox(10, statusLabel, deleteButton, saveButton);
         actionRow.setAlignment(Pos.CENTER_RIGHT);
 
-        panel.getChildren().addAll(title, subtitle, exerciseTable, actionRow);
+        panel.getChildren().addAll(title, subtitle, sessionNameLabel, sessionNameField, exerciseTable, actionRow);
         return panel;
     }
 
@@ -204,7 +212,7 @@ public class LogWorkoutView implements Page {
     }
 
     private void handleSaveWorkout(ObservableList<Exercise> exerciseData, Label statusLabel,
-                                   Workout workout, boolean[] isSaved) {
+                                   Workout workout, boolean[] isSaved, TextField sessionNameField) {
         if (exerciseData.isEmpty()) {
             showStatus(statusLabel, "Add at least one exercise before saving.", true);
             return;
@@ -220,11 +228,14 @@ public class LogWorkoutView implements Page {
             return;
         }
 
+        workout.setName(SessionNames.normalize(sessionNameField.getText()));
+
         exerciseData.forEach(workout::addExercise);
         user.addWorkout(workout);          // keep in-memory state consistent for this session
         workoutDAO.save(user, workout);    // persist to SQLite
 
         isSaved[0] = true;
+        sessionNameField.setDisable(true);
         showStatus(statusLabel, "Workout session saved.", false);
     }
 
