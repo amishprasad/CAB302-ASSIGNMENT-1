@@ -42,8 +42,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class WorkoutHistoryView implements Page {
@@ -447,39 +449,10 @@ public class WorkoutHistoryView implements Page {
         exCol.setPrefWidth(360);
         exCol.setEditable(false);
 
-        TableColumn<Entry, String> setsCol = new TableColumn<>("SETS");
-        setsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getSets()));
-        setsCol.setStyle("-fx-alignment: CENTER;");
-        setsCol.setPrefWidth(90);
-        setsCol.setCellFactory(TextFieldTableCell.forTableColumn());
-        setsCol.setOnEditCommit(ev -> {
-            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
-            if (!isPositiveInt(value)) {
-                table.refresh();
-                return;
-            }
-            Entry entry = ev.getRowValue();
-            entry.setSets(value);
-            table.refresh();
-            onEdited.run();
-        });
-
-        TableColumn<Entry, String> repsCol = new TableColumn<>("REPS");
-        repsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getReps()));
-        repsCol.setStyle("-fx-alignment: CENTER;");
-        repsCol.setPrefWidth(110);
-        repsCol.setCellFactory(TextFieldTableCell.forTableColumn());
-        repsCol.setOnEditCommit(ev -> {
-            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
-            if (!isPositiveInt(value)) {
-                table.refresh();
-                return;
-            }
-            Entry entry = ev.getRowValue();
-            entry.setReps(value);
-            table.refresh();
-            onEdited.run();
-        });
+        TableColumn<Entry, String> setsCol = editableNumberColumn(
+                table, "SETS", 90, Entry::getSets, Entry::setSets, onEdited);
+        TableColumn<Entry, String> repsCol = editableNumberColumn(
+                table, "REPS", 110, Entry::getReps, Entry::setReps, onEdited);
 
         table.getColumns().addAll(dateCol, exCol, setsCol, repsCol);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -505,6 +478,33 @@ public class WorkoutHistoryView implements Page {
             }
         });
         return table;
+    }
+
+    /**
+     * Builds a centered, editable column holding a positive whole number (sets or reps).
+     * Invalid input is rejected and the cell reverts; valid input is written back through
+     * {@code setter} and {@code onEdited} is notified so the dialog can update its Save state.
+     */
+    private TableColumn<Entry, String> editableNumberColumn(
+            TableView<Entry> table, String title, double width,
+            Function<Entry, String> getter, BiConsumer<Entry, String> setter,
+            Runnable onEdited) {
+        TableColumn<Entry, String> column = new TableColumn<>(title);
+        column.setCellValueFactory(cd -> new ReadOnlyStringWrapper(getter.apply(cd.getValue())));
+        column.setStyle("-fx-alignment: CENTER;");
+        column.setPrefWidth(width);
+        column.setCellFactory(TextFieldTableCell.forTableColumn());
+        column.setOnEditCommit(ev -> {
+            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
+            if (!isPositiveInt(value)) {
+                table.refresh();
+                return;
+            }
+            setter.accept(ev.getRowValue(), value);
+            table.refresh();
+            onEdited.run();
+        });
+        return column;
     }
 
     private static boolean isPositiveInt(String text) {
