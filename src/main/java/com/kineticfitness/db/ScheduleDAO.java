@@ -248,6 +248,22 @@ public class ScheduleDAO {
         }
     }
 
+    /**
+     * Removes every scheduled workout belonging to this user, for the Settings page's
+     * "Clear All Data". Other users' schedules and the account itself are untouched.
+     * An unknown username matches nothing, so it is a harmless no-op.
+     */
+    public void deleteAllForUser(String username) {
+        Connection connection = DatabaseConnection.getInstance();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM scheduled_workouts WHERE user_id = (SELECT id FROM users WHERE username = ?)")) {
+            statement.setString(1, username);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to delete scheduled workouts: " + e.getMessage());
+        }
+    }
+
     private ScheduledWorkout mapRow(ResultSet rs) throws SQLException {
         LocalDate date = ScheduleValidator.parseDate(rs.getString("workout_date")).orElse(null);
         if (date == null) {
