@@ -17,6 +17,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -96,7 +97,10 @@ public class SettingsView implements Page {
         content.setPadding(new Insets(32, 40, 32, 40));
         content.setStyle("-fx-background-color: " + CONTENT_BG + ";");
         content.setMaxWidth(640);
-        return content;
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: " + CONTENT_BG + "; -fx-background: " + CONTENT_BG + ";");
+        return scroll;
     }
 
     // ---- Units & Measurement ----
