@@ -4,6 +4,7 @@ import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.util.WorkoutStats;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.chart.BarChart;
@@ -17,14 +18,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Progress & Analytics page: summarises real training volume, current body metrics, and
@@ -95,7 +91,8 @@ public class ProgressAnalyticsView implements Page {
         int totalReps = workouts.stream().mapToInt(Workout::totalReps).sum();
         List<LocalProfileStore.Milestone> milestones = LocalProfileStore.getInstance().milestones;
         long goalsAchieved = milestones.stream().filter(LocalProfileStore.Milestone::isAchieved).count();
-        int streak = currentStreak(workouts);
+        List<LocalDate> dates = workouts.stream().map(Workout::getDate).toList();
+        int streak = WorkoutStats.currentStreak(dates, LocalDate.now());
 
         HBox row = new HBox(16,
                 statCard("Total Workouts", String.valueOf(totalWorkouts)),
@@ -106,31 +103,6 @@ public class ProgressAnalyticsView implements Page {
             HBox.setHgrow(node, Priority.ALWAYS);
         }
         return row;
-    }
-
-    /** Consecutive days with at least one workout, counting back from the most recent workout day. */
-    private int currentStreak(List<Workout> workouts) {
-        Set<LocalDate> days = new TreeSet<>();
-        for (Workout w : workouts) {
-            days.add(w.getDate());
-        }
-        if (days.isEmpty()) {
-            return 0;
-        }
-        List<LocalDate> descending = new ArrayList<>(days);
-        java.util.Collections.reverse(descending);
-
-        int streak = 1;
-        LocalDate cursor = descending.get(0);
-        for (int i = 1; i < descending.size(); i++) {
-            if (descending.get(i).equals(cursor.minusDays(1))) {
-                streak++;
-                cursor = descending.get(i);
-            } else {
-                break;
-            }
-        }
-        return streak;
     }
 
     private VBox statCard(String label, String value) {
@@ -165,9 +137,15 @@ public class ProgressAnalyticsView implements Page {
         chart.setPrefHeight(240);
         chart.setAnimated(false);
 
+        DateTimeFormatter labelFormat = DateTimeFormatter.ofPattern("MMM d");
+        List<WorkoutStats.DayVolume> days = workouts.stream()
+                .filter(w -> w.getDate() != null)
+                .map(w -> new WorkoutStats.DayVolume(w.getDate(), w.totalReps()))
+                .toList();
+
         XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (WeekBucket bucket : weeklyBuckets(workouts)) {
-            series.getData().add(new XYChart.Data<>(bucket.label, bucket.totalReps));
+        for (WorkoutStats.WeekBucket bucket : WorkoutStats.weeklyBuckets(days, LocalDate.now(), WEEKS_SHOWN)) {
+            series.getData().add(new XYChart.Data<>(bucket.weekStart().format(labelFormat), bucket.totalReps()));
         }
         chart.getData().add(series);
 
@@ -175,29 +153,6 @@ public class ProgressAnalyticsView implements Page {
         card.setPadding(new Insets(20));
         card.setStyle(CARD);
         return card;
-    }
-
-    private record WeekBucket(String label, int totalReps) {}
-
-    /** Buckets real workout reps into the last {@value WEEKS_SHOWN} calendar weeks (Mon–Sun), oldest first. */
-    private List<WeekBucket> weeklyBuckets(List<Workout> workouts) {
-        DateTimeFormatter labelFormat = DateTimeFormatter.ofPattern("MMM d");
-        LocalDate thisWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-
-        List<WeekBucket> buckets = new ArrayList<>();
-        for (int i = WEEKS_SHOWN - 1; i >= 0; i--) {
-            LocalDate weekStart = thisWeekStart.minusWeeks(i);
-            LocalDate weekEnd = weekStart.plusDays(6);
-            int reps = 0;
-            for (Workout w : workouts) {
-                LocalDate d = w.getDate();
-                if (!d.isBefore(weekStart) && !d.isAfter(weekEnd)) {
-                    reps += w.totalReps();
-                }
-            }
-            buckets.add(new WeekBucket(weekStart.format(labelFormat), reps));
-        }
-        return buckets;
     }
 
     // ---- Body metrics (single current snapshot — no historical log exists yet) ------
