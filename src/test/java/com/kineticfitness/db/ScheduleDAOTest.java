@@ -143,4 +143,35 @@ class ScheduleDAOTest {
     void anUnknownUserSimplyHasNothingScheduled() {
         assertTrue(scheduleDAO.findForUser("nobody").isEmpty());
     }
+
+    @Test
+    void deletingAllForAUserClearsEveryWorkoutTheyHave() {
+        scheduleDAO.save("testuser", new ScheduledWorkout("One", DATE, SIX_PM, 30, 0));
+        scheduleDAO.save("testuser", new ScheduledWorkout("Two", DATE.plusDays(1), SIX_PM, 30, 0));
+
+        scheduleDAO.deleteAllForUser("testuser");
+
+        assertTrue(scheduleDAO.findForUser("testuser").isEmpty());
+    }
+
+    @Test
+    void deletingAllForAUserLeavesOtherUsersAlone() {
+        userDAO.save(new User("someoneelse", FitnessLevel.BEGINNER, 30, 170, 70));
+        saveLegDay();
+        scheduleDAO.save("someoneelse", new ScheduledWorkout("Theirs", DATE, SIX_PM, 30, 0));
+
+        scheduleDAO.deleteAllForUser("testuser");
+
+        assertTrue(scheduleDAO.findForUser("testuser").isEmpty());
+        assertEquals(1, scheduleDAO.findForUser("someoneelse").size());
+    }
+
+    @Test
+    void deletingAllForAnUnknownUserDoesNothing() {
+        saveLegDay();
+
+        scheduleDAO.deleteAllForUser("nobody");
+
+        assertEquals(1, scheduleDAO.findForUser("testuser").size());
+    }
 }
