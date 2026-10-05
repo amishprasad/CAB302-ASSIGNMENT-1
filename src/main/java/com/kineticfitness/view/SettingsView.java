@@ -1,11 +1,13 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.db.PreferencesDAO;
 import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.db.UserDAO;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.util.PasswordUtil;
+import com.kineticfitness.util.UnitSystem;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -51,13 +53,14 @@ public class SettingsView implements Page {
 
     private final UserDAO userDAO = new UserDAO();
     private final WorkoutDAO workoutDAO = new WorkoutDAO();
+    private final PreferencesDAO preferencesDAO = new PreferencesDAO();
 
-    private String selectedUnit = "Metric";
+    private UnitSystem selectedUnit = UnitSystem.METRIC;
     private final HBox unitToggle = new HBox(4);
 
     private final CheckBox workoutReminders = new CheckBox("Workout reminders");
     private final CheckBox goalAlerts = new CheckBox("Goal progress alerts");
-    private final CheckBox weeklySummary = new CheckBox("Weekly summary email");
+    private final CheckBox weeklySummary = new CheckBox("Weekly summary (shown on Dashboard)");
 
     private final TextField usernameField = new TextField();
     private final PasswordField newPasswordField = new PasswordField();
@@ -87,6 +90,11 @@ public class SettingsView implements Page {
         usernameField.setEditable(false);
         usernameField.setStyle("-fx-opacity: 0.75;");
 
+        if (currentUser != null) {
+            preferencesDAO.load(LocalProfileStore.getInstance(), currentUser.getUsername());
+        }
+        selectedUnit = LocalProfileStore.getInstance().unitSystem;
+
         VBox content = new VBox(16, title, subtitle,
                 buildUnitsCard(), buildNotificationsCard(), buildAccountCard(), buildSaveRow());
         content.setPadding(new Insets(32, 40, 32, 40));
@@ -95,7 +103,7 @@ public class SettingsView implements Page {
         return content;
     }
 
-    // ---- Units & Measurement (session-only — no preferences table exists yet) ----
+    // ---- Units & Measurement ----
 
     private VBox buildUnitsCard() {
         Label header = new Label("Units & Measurement");
@@ -105,7 +113,7 @@ public class SettingsView implements Page {
         helper.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
 
         unitToggle.setStyle("-fx-background-color: #E2E8F0; -fx-background-radius: 8; -fx-padding: 4;");
-        unitToggle.getChildren().setAll(unitOption("Metric"), unitOption("Imperial"));
+        unitToggle.getChildren().setAll(unitOption(UnitSystem.METRIC), unitOption(UnitSystem.IMPERIAL));
 
         VBox card = new VBox(10, header, helper, unitToggle);
         card.setPadding(new Insets(20));
@@ -113,22 +121,22 @@ public class SettingsView implements Page {
         return card;
     }
 
-    private Label unitOption(String unitName) {
-        Label option = new Label(unitName);
+    private Label unitOption(UnitSystem system) {
+        Label option = new Label(system.displayName());
         option.setMaxWidth(Double.MAX_VALUE);
         option.setAlignment(Pos.CENTER);
         HBox.setHgrow(option, Priority.ALWAYS);
         option.setPadding(new Insets(8, 0, 8, 0));
-        applyUnitStyle(option, unitName.equals(selectedUnit));
-        option.setOnMouseClicked(e -> selectUnit(unitName));
+        applyUnitStyle(option, system == selectedUnit);
+        option.setOnMouseClicked(e -> selectUnit(system));
         return option;
     }
 
-    private void selectUnit(String unitName) {
-        selectedUnit = unitName;
+    private void selectUnit(UnitSystem system) {
+        selectedUnit = system;
         for (Node node : unitToggle.getChildren()) {
             Label option = (Label) node;
-            applyUnitStyle(option, option.getText().equals(unitName));
+            applyUnitStyle(option, option.getText().equals(system.displayName()));
         }
     }
 
@@ -146,9 +154,10 @@ public class SettingsView implements Page {
         Label header = new Label("Notifications");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
-        workoutReminders.setSelected(true);
-        goalAlerts.setSelected(true);
-        weeklySummary.setSelected(false);
+        LocalProfileStore store = LocalProfileStore.getInstance();
+        workoutReminders.setSelected(store.notifyWorkoutReminders);
+        goalAlerts.setSelected(store.notifyGoalAlerts);
+        weeklySummary.setSelected(store.notifyWeeklySummary);
         for (CheckBox box : new CheckBox[]{workoutReminders, goalAlerts, weeklySummary}) {
             box.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TITLE + ";");
         }
@@ -209,7 +218,11 @@ public class SettingsView implements Page {
         return row;
     }
 
-    /** Saves a password change when one was entered. Units/notifications stay session-only for now. */
+    /**
+     * Always persists units and notification choices. A password change only happens
+     * when the password fields were actually filled in — leaving them blank just saves
+     * the rest of the page, the same as before.
+     */
     private void handleSave() {
         User currentUser = UserSession.getCurrentUser();
         if (currentUser == null) {
@@ -219,17 +232,28 @@ public class SettingsView implements Page {
 
         String newPassword = newPasswordField.getText();
         String confirmPassword = confirmPasswordField.getText();
+        boolean changingPassword = !newPassword.isEmpty() || !confirmPassword.isEmpty();
 
-        if (newPassword.isEmpty() && confirmPassword.isEmpty()) {
+        if (changingPassword) {
+            if (newPassword.length() < 6) {
+                showStatus("New password must be at least 6 characters.", true);
+                return;
+            }
+            if (!newPassword.equals(confirmPassword)) {
+                showStatus("Passwords don't match.", true);
+                return;
+            }
+        }
+
+        LocalProfileStore store = LocalProfileStore.getInstance();
+        store.unitSystem = selectedUnit;
+        store.notifyWorkoutReminders = workoutReminders.isSelected();
+        store.notifyGoalAlerts = goalAlerts.isSelected();
+        store.notifyWeeklySummary = weeklySummary.isSelected();
+        preferencesDAO.save(store, currentUser.getUsername());
+
+        if (!changingPassword) {
             showStatus("Settings saved.", false);
-            return;
-        }
-        if (newPassword.length() < 6) {
-            showStatus("New password must be at least 6 characters.", true);
-            return;
-        }
-        if (!newPassword.equals(confirmPassword)) {
-            showStatus("Passwords don't match.", true);
             return;
         }
 
@@ -239,7 +263,7 @@ public class SettingsView implements Page {
 
         newPasswordField.clear();
         confirmPasswordField.clear();
-        showStatus("Password updated.", false);
+        showStatus("Settings and password updated.", false);
     }
 
     private void handleExport(Node anchor) {
