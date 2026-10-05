@@ -21,6 +21,10 @@ import javafx.scene.layout.VBox;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.time.DayOfWeek;
+import java.time.temporal.ChronoUnit;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 
 /**
  * Progress & Analytics page: summarises real training volume, current body metrics, and
@@ -39,7 +43,6 @@ public class ProgressAnalyticsView implements Page {
     private static final String BORDER = "#E2E8F0";
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 10;"
             + " -fx-border-color: " + BORDER + "; -fx-border-radius: 10;";
-    private static final int WEEKS_SHOWN = 8;
 
     private final WorkoutDAO workoutDAO = new WorkoutDAO();
 
@@ -121,6 +124,21 @@ public class ProgressAnalyticsView implements Page {
 
     // ---- Weekly volume chart -------------------------------------------
 
+    private enum TimeRange {
+        FOUR_WEEKS("4 Weeks", 4),
+        EIGHT_WEEKS("8 Weeks", 8),
+        TWELVE_WEEKS("12 Weeks", 12),
+        ALL("All", 0);
+
+        final String label;
+        final int weeks; // 0 means "from the first workout"
+
+        TimeRange(String label, int weeks) {
+            this.label = label;
+            this.weeks = weeks;
+        }
+    }
+
     private VBox buildVolumeChartCard(List<Workout> workouts) {
         Label header = new Label("Weekly Training Volume");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
@@ -137,22 +155,88 @@ public class ProgressAnalyticsView implements Page {
         chart.setPrefHeight(240);
         chart.setAnimated(false);
 
+        Label summary = new Label();
+        summary.setWrapText(true);
+        summary.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TITLE + ";");
+
+        ToggleGroup group = new ToggleGroup();
+        HBox rangeRow = new HBox(8);
+        for (TimeRange range : TimeRange.values()) {
+            ToggleButton button = new ToggleButton(range.label);
+            button.setToggleGroup(group);
+            button.setUserData(range);
+            button.setSelected(range == TimeRange.EIGHT_WEEKS);
+            rangeRow.getChildren().add(button);
+        }
+        group.selectedToggleProperty().addListener((obs, previous, current) -> {
+            if (current == null) {            // never allow "nothing selected"
+                previous.setSelected(true);
+                return;
+            }
+            refreshChart(chart, summary, workouts, (TimeRange) current.getUserData());
+        });
+
+        refreshChart(chart, summary, workouts, TimeRange.EIGHT_WEEKS);
+
+        VBox card = new VBox(10, header, helper, rangeRow, chart, summary);
+        card.setPadding(new Insets(20));
+        card.setStyle(CARD);
+        return card;
+    }
+
+    private void refreshChart(BarChart<String, Number> chart, Label summary,
+                              List<Workout> workouts, TimeRange range) {
         DateTimeFormatter labelFormat = DateTimeFormatter.ofPattern("MMM d");
         List<WorkoutStats.DayVolume> days = workouts.stream()
                 .filter(w -> w.getDate() != null)
                 .map(w -> new WorkoutStats.DayVolume(w.getDate(), w.totalReps()))
                 .toList();
 
+        List<WorkoutStats.WeekBucket> buckets =
+                WorkoutStats.weeklyBuckets(days, LocalDate.now(), weeksFor(range, workouts));
+
         XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (WorkoutStats.WeekBucket bucket : WorkoutStats.weeklyBuckets(days, LocalDate.now(), WEEKS_SHOWN)) {
+        for (WorkoutStats.WeekBucket bucket : buckets) {
             series.getData().add(new XYChart.Data<>(bucket.weekStart().format(labelFormat), bucket.totalReps()));
         }
-        chart.getData().add(series);
+        chart.getData().setAll(series);
+        summary.setText(summaryText(buckets));
+    }
 
-        VBox card = new VBox(10, header, helper, chart);
-        card.setPadding(new Insets(20));
-        card.setStyle(CARD);
-        return card;
+    /** "All" runs from the week of the first workout, capped at a year so the bars stay readable. */
+    private int weeksFor(TimeRange range, List<Workout> workouts) {
+        if (range.weeks > 0) {
+            return range.weeks;
+        }
+        LocalDate earliest = workouts.stream()
+                .map(Workout::getDate)
+                .filter(d -> d != null)
+                .min(LocalDate::compareTo)
+                .orElse(null);
+        if (earliest == null) {
+            return 1;
+        }
+        LocalDate thisMonday = LocalDate.now().with(DayOfWeek.MONDAY);
+        long weeks = ChronoUnit.WEEKS.between(earliest.with(DayOfWeek.MONDAY), thisMonday) + 1;
+        return (int) Math.min(weeks, 52);
+    }
+
+    /** Text version of the chart, so the numbers don't depend on reading bar heights or colour. */
+    private String summaryText(List<WorkoutStats.WeekBucket> buckets) {
+        int total = 0;
+        WorkoutStats.WeekBucket best = null;
+        for (WorkoutStats.WeekBucket bucket : buckets) {
+            total += bucket.totalReps();
+            if (bucket.totalReps() > 0 && (best == null || bucket.totalReps() > best.totalReps())) {
+                best = bucket;
+            }
+        }
+        if (best == null) {
+            return "No workouts logged in this period.";
+        }
+        return String.format("%d reps over %d weeks. Most active week: week of %s (%d reps).",
+                total, buckets.size(),
+                best.weekStart().format(DateTimeFormatter.ofPattern("MMM d")), best.totalReps());
     }
 
     // ---- Body metrics (single current snapshot — no historical log exists yet) ------
