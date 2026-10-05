@@ -2,8 +2,10 @@ package com.kineticfitness.view;
 
 
 import com.kineticfitness.db.PreferencesDAO;
+import com.kineticfitness.db.ProfileDAO;
 import com.kineticfitness.db.UserDAO;
 import com.kineticfitness.db.WorkoutDAO;
+import com.kineticfitness.db.ScheduleDAO;
 import com.kineticfitness.model.User;
 import com.kineticfitness.service.ExportService;
 import com.kineticfitness.service.PasswordChangeValidator;
@@ -47,6 +49,8 @@ public class SettingsView implements Page {
     private final UserDAO userDAO = new UserDAO();
     private final WorkoutDAO workoutDAO = new WorkoutDAO();
     private final PreferencesDAO preferencesDAO = new PreferencesDAO();
+    private final ScheduleDAO scheduleDAO = new ScheduleDAO();
+    private final ProfileDAO profileDAO = new ProfileDAO();
 
     private UnitSystem selectedUnit = UnitSystem.METRIC;
     private final HBox unitToggle = new HBox(4);
@@ -300,7 +304,8 @@ public class SettingsView implements Page {
         }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                "This permanently deletes all your logged workouts and goals. This can't be undone.",
+                "This permanently deletes your logged workouts, scheduled workouts and goals. "
+                        + "Your account and profile details are kept. This can't be undone.",
                 ButtonType.CANCEL, ButtonType.OK);
         confirm.setHeaderText("Clear all your data?");
         Optional<ButtonType> result = confirm.showAndWait();
@@ -308,9 +313,20 @@ public class SettingsView implements Page {
             return;
         }
 
-        workoutDAO.deleteAllForUser(currentUser.getUsername());
-        LocalProfileStore.getInstance().milestones.clear();
-        showStatus("Your workouts and goals have been cleared.", false);
+        String username = currentUser.getUsername();
+        workoutDAO.deleteAllForUser(username);
+        scheduleDAO.deleteAllForUser(username);
+
+        LocalProfileStore store = LocalProfileStore.getInstance();
+        store.milestones.clear();
+        store.primaryGoal = null;
+        store.targetWeightKg = 0;
+        store.goalStartDate = null;
+        store.goalTargetDate = null;
+        store.goalAchievedDate = null;
+        profileDAO.save(store, username);
+
+        showStatus("Your workouts, schedule and goals have been cleared.", false);
     }
 
     private Label fieldLabel(String text) {
