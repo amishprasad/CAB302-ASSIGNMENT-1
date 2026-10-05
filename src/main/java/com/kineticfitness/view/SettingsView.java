@@ -8,6 +8,8 @@ import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.util.PasswordUtil;
 import com.kineticfitness.util.UnitSystem;
+import com.kineticfitness.service.PasswordChangeValidator;
+import com.kineticfitness.service.ValidationResult;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -65,6 +67,7 @@ public class SettingsView implements Page {
     private final TextField usernameField = new TextField();
     private final PasswordField newPasswordField = new PasswordField();
     private final PasswordField confirmPasswordField = new PasswordField();
+    private final PasswordField currentPasswordField = new PasswordField();
 
     private final Label statusLabel = new Label();
 
@@ -178,15 +181,19 @@ public class SettingsView implements Page {
         grid.setHgap(14);
         grid.setVgap(10);
 
-        grid.add(fieldLabel("Username"), 0, 0);
-        grid.add(fieldLabel("New Password"), 1, 0);
-        grid.add(fieldLabel("Confirm Password"), 2, 0);
         usernameField.setPrefWidth(160);
+        currentPasswordField.setPrefWidth(160);
         newPasswordField.setPrefWidth(160);
         confirmPasswordField.setPrefWidth(160);
+
+        grid.add(fieldLabel("Username"), 0, 0);
+        grid.add(fieldLabel("Current Password"), 1, 0);
         grid.add(usernameField, 0, 1);
-        grid.add(newPasswordField, 1, 1);
-        grid.add(confirmPasswordField, 2, 1);
+        grid.add(currentPasswordField, 1, 1);
+        grid.add(fieldLabel("New Password"), 0, 2);
+        grid.add(fieldLabel("Confirm Password"), 1, 2);
+        grid.add(newPasswordField, 0, 3);
+        grid.add(confirmPasswordField, 1, 3);
 
         Button exportButton = new Button("Export My Data");
         exportButton.setStyle("-fx-background-color: white; -fx-text-fill: " + TITLE + ";"
@@ -230,17 +237,17 @@ public class SettingsView implements Page {
             return;
         }
 
+        String currentPassword = currentPasswordField.getText();
         String newPassword = newPasswordField.getText();
         String confirmPassword = confirmPasswordField.getText();
-        boolean changingPassword = !newPassword.isEmpty() || !confirmPassword.isEmpty();
+        boolean changingPassword = !currentPassword.isEmpty()
+                || !newPassword.isEmpty() || !confirmPassword.isEmpty();
 
         if (changingPassword) {
-            if (newPassword.length() < 6) {
-                showStatus("New password must be at least 6 characters.", true);
-                return;
-            }
-            if (!newPassword.equals(confirmPassword)) {
-                showStatus("Passwords don't match.", true);
+            ValidationResult check = PasswordChangeValidator.validate(
+                    currentUser.getPasswordHash(), currentPassword, newPassword, confirmPassword);
+            if (check.isInvalid()) {
+                showStatus(check.message(), true);
                 return;
             }
         }
@@ -263,6 +270,7 @@ public class SettingsView implements Page {
 
         newPasswordField.clear();
         confirmPasswordField.clear();
+        currentPasswordField.clear();
         showStatus("Settings and password updated.", false);
     }
 
