@@ -56,8 +56,6 @@ public class SettingsView implements Page {
     private final HBox unitToggle = new HBox(4);
 
     private final CheckBox workoutReminders = new CheckBox("Workout reminders");
-    private final CheckBox goalAlerts = new CheckBox("Goal progress alerts");
-    private final CheckBox weeklySummary = new CheckBox("Weekly summary (shown on Dashboard)");
 
     private final TextField usernameField = new TextField();
     private final PasswordField newPasswordField = new PasswordField();
@@ -152,15 +150,10 @@ public class SettingsView implements Page {
         Label header = new Label("Notifications");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
-        LocalProfileStore store = LocalProfileStore.getInstance();
-        workoutReminders.setSelected(store.notifyWorkoutReminders);
-        goalAlerts.setSelected(store.notifyGoalAlerts);
-        weeklySummary.setSelected(store.notifyWeeklySummary);
-        for (CheckBox box : new CheckBox[]{workoutReminders, goalAlerts, weeklySummary}) {
-            box.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TITLE + ";");
-        }
+        workoutReminders.setSelected(LocalProfileStore.getInstance().notifyWorkoutReminders);
+        workoutReminders.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TITLE + ";");
 
-        VBox card = new VBox(10, header, workoutReminders, goalAlerts, weeklySummary);
+        VBox card = new VBox(10, header, workoutReminders);
         card.setPadding(new Insets(20));
         card.setStyle(CARD);
         return card;
@@ -250,8 +243,6 @@ public class SettingsView implements Page {
         LocalProfileStore store = LocalProfileStore.getInstance();
         store.unitSystem = selectedUnit;
         store.notifyWorkoutReminders = workoutReminders.isSelected();
-        store.notifyGoalAlerts = goalAlerts.isSelected();
-        store.notifyWeeklySummary = weeklySummary.isSelected();
         preferencesDAO.save(store, currentUser.getUsername());
 
         if (!changingPassword) {
@@ -260,7 +251,10 @@ public class SettingsView implements Page {
         }
 
         String hashed = PasswordUtil.hash(newPassword);
-        userDAO.updatePassword(currentUser.getUsername(), hashed);
+        if (!userDAO.updatePassword(currentUser.getUsername(), hashed)) {
+            showStatus("Couldn't update your password. Please try again.", true);
+            return;
+        }
         currentUser.setPasswordHash(hashed);
 
         newPasswordField.clear();

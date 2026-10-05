@@ -5,6 +5,9 @@ import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.util.WorkoutStats;
+import com.kineticfitness.util.BmiCalculator;
+import com.kineticfitness.util.UnitConverter;
+import com.kineticfitness.util.UnitSystem;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.chart.BarChart;
@@ -246,14 +249,14 @@ public class ProgressAnalyticsView implements Page {
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
         LocalProfileStore profile = LocalProfileStore.getInstance();
-        double weight = profile.weightKg;
-        double height = profile.heightCm;
-        double bmi = (height > 0) ? weight / Math.pow(height / 100.0, 2) : 0;
+        UnitSystem units = profile.unitSystem;
+        double bmi = BmiCalculator.bmi(profile.heightCm, profile.weightKg);
+        String bmiCaption = bmi > 0 ? "BMI (" + BmiCalculator.category(bmi) + ")" : "BMI";
 
         HBox row = new HBox(16,
-                statCard("Weight", weight > 0 ? String.format("%.1f kg", weight) : "—"),
-                statCard("Height", height > 0 ? String.format("%.0f cm", height) : "—"),
-                statCard("BMI", bmi > 0 ? String.format("%.1f", bmi) : "—"));
+                statCard("Weight", UnitConverter.formatWeight(profile.weightKg, units)),
+                statCard("Height", UnitConverter.formatHeight(profile.heightCm, units)),
+                statCard(bmiCaption, bmi > 0 ? String.format("%.1f", bmi) : UnitConverter.NOT_SET));
         for (Node node : row.getChildren()) {
             HBox.setHgrow(node, Priority.ALWAYS);
         }
