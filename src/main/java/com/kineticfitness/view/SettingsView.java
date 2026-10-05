@@ -1,25 +1,20 @@
 package com.kineticfitness.view;
 
+
 import com.kineticfitness.db.PreferencesDAO;
-import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.db.UserDAO;
+import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.model.User;
-import com.kineticfitness.model.Workout;
+import com.kineticfitness.service.ExportService;
+import com.kineticfitness.service.PasswordChangeValidator;
+import com.kineticfitness.service.ValidationResult;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.util.PasswordUtil;
 import com.kineticfitness.util.UnitSystem;
-import com.kineticfitness.service.PasswordChangeValidator;
-import com.kineticfitness.service.ValidationResult;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -28,13 +23,9 @@ import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.time.LocalDate;
 import java.util.Optional;
 
 /**
@@ -195,7 +186,7 @@ public class SettingsView implements Page {
         grid.add(newPasswordField, 0, 3);
         grid.add(confirmPasswordField, 1, 3);
 
-        Button exportButton = new Button("Export My Data");
+        Button exportButton = new Button("Export Workouts (CSV)");
         exportButton.setStyle("-fx-background-color: white; -fx-text-fill: " + TITLE + ";"
                 + " -fx-border-color: " + BORDER + "; -fx-border-radius: 8; -fx-background-radius: 8;");
         exportButton.setOnAction(e -> handleExport(exportButton));
@@ -282,9 +273,9 @@ public class SettingsView implements Page {
         }
 
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Export My Data");
-        chooser.setInitialFileName("kinetic-fitness-export-" + currentUser.getUsername() + ".txt");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text file", "*.txt"));
+        chooser.setTitle("Export My Workouts");
+        chooser.setInitialFileName(ExportService.fileName(currentUser.getUsername(), LocalDate.now()));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV file", "*.csv"));
 
         Window window = anchor.getScene() != null ? anchor.getScene().getWindow() : null;
         java.io.File file = chooser.showSaveDialog(window);
@@ -292,42 +283,12 @@ public class SettingsView implements Page {
             return;
         }
 
-        try (Writer writer = Files.newBufferedWriter(Path.of(file.getPath()), StandardCharsets.UTF_8)) {
-            writeExport(writer, currentUser);
-            showStatus("Data exported to " + file.getName() + ".", false);
+        String csv = ExportService.workoutsToCsv(workoutDAO.findAllByUsername(currentUser.getUsername()));
+        try {
+            Files.writeString(file.toPath(), csv, StandardCharsets.UTF_8);
+            showStatus("Workouts exported to " + file.getName() + ".", false);
         } catch (IOException ex) {
             showStatus("Export failed: " + ex.getMessage(), true);
-        }
-    }
-
-    private void writeExport(Writer writer, User user) throws IOException {
-        DateTimeFormatter timestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        LocalProfileStore profile = LocalProfileStore.getInstance();
-
-        writer.write("Kinetic Fitness — Data Export\n");
-        writer.write("Generated: " + LocalDateTime.now().format(timestamp) + "\n");
-        writer.write("=".repeat(40) + "\n\n");
-
-        writer.write("Account\n");
-        writer.write("  Username: " + user.getUsername() + "\n");
-        writer.write("  Email: " + (user.getEmail() != null ? user.getEmail() : "—") + "\n\n");
-
-        writer.write("Profile\n");
-        writer.write("  Name: " + (profile.firstName.isEmpty() ? "—" : profile.firstName) + "\n");
-        writer.write("  Height: " + (profile.heightCm > 0 ? profile.heightCm + " cm" : "—") + "\n");
-        writer.write("  Weight: " + (profile.weightKg > 0 ? profile.weightKg + " kg" : "—") + "\n\n");
-
-        List<Workout> workouts = workoutDAO.findAllByUsername(user.getUsername());
-        writer.write("Workouts (" + workouts.size() + ")\n");
-        for (Workout w : workouts) {
-            writer.write("  " + w.getDate() + " — " + w.getExercises().size() + " exercise(s)\n");
-        }
-        writer.write("\n");
-
-        writer.write("Goals (" + profile.milestones.size() + ")\n");
-        for (LocalProfileStore.Milestone m : profile.milestones) {
-            writer.write("  " + m.description + ": " + m.currentValue + " / " + m.targetValue
-                    + " " + m.unit + " (" + m.progressPercent() + "%)\n");
         }
     }
 
