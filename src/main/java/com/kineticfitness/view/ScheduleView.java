@@ -4,6 +4,7 @@ import com.kineticfitness.db.ScheduleDAO;
 import com.kineticfitness.model.ScheduleStatus;
 import com.kineticfitness.model.ScheduledWorkout;
 import com.kineticfitness.service.ReminderService;
+import com.kineticfitness.service.ReminderSettingsService;
 import com.kineticfitness.service.ScheduleConflictDetector;
 import com.kineticfitness.service.ScheduleValidator;
 import com.kineticfitness.service.ValidationResult;
@@ -21,6 +22,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -79,6 +81,7 @@ public class ScheduleView implements Page {
     private static final List<String> TIME_SLOTS = buildTimeSlots();
 
     private final ScheduleDAO scheduleDAO;
+    private final ReminderSettingsService reminderSettings;
 
     private final ComboBox<String> nameBox = new ComboBox<>();
     private final DatePicker datePicker = new DatePicker();
@@ -107,7 +110,12 @@ public class ScheduleView implements Page {
 
     /** Lets a test supply its own data source instead of the live database. */
     public ScheduleView(ScheduleDAO scheduleDAO) {
+        this(scheduleDAO, new ReminderSettingsService(scheduleDAO));
+    }
+
+    public ScheduleView(ScheduleDAO scheduleDAO, ReminderSettingsService reminderSettings) {
         this.scheduleDAO = scheduleDAO;
+        this.reminderSettings = reminderSettings;
     }
 
     private static List<String> buildTimeSlots() {
@@ -379,15 +387,19 @@ public class ScheduleView implements Page {
                 ? ReminderService.humanise(workout.getReminderLeadMinutes()) + " before"
                 : "Off";
 
-        HBox actions = new HBox(6);
+        FlowPane actions = new FlowPane(6, 6);
         actions.setAlignment(Pos.CENTER_LEFT);
+        actions.setPrefWrapLength(230);
         actions.setMinWidth(230);
+        actions.setPrefWidth(230);
+        actions.setMaxWidth(230);
 
         if (workout.getStatus() == ScheduleStatus.SCHEDULED) {
             actions.getChildren().addAll(
                     action("Complete", ORANGE, "white", () -> setStatus(workout, ScheduleStatus.COMPLETED)),
                     action("Skip", "white", TITLE, () -> setStatus(workout, ScheduleStatus.SKIPPED)),
-                    action("Move", "white", TITLE, () -> reschedule(workout)));
+                    action("Move", "white", TITLE, () -> reschedule(workout)),
+                    action("Edit reminder", "white", TITLE, () -> editReminder(workout)));
         } else {
             actions.getChildren().addAll(
                     action("Undo", "white", TITLE, () -> setStatus(workout, ScheduleStatus.SCHEDULED)),
@@ -405,10 +417,58 @@ public class ScheduleView implements Page {
         return row;
     }
 
-    /**
-     * Moves a workout to a new status, letting the model reject the change if it
-     * is not a legal transition rather than trusting the button that was clicked.
-     */
+    /** Edits a saved reminder; failed saves keep the dialog and selection open. */
+    private void editReminder(ScheduledWorkout workout) {
+        ComboBox<Integer> choice = new ComboBox<>();
+        choice.getItems().setAll(REMINDER_CHOICES);
+        if (!choice.getItems().contains(workout.getReminderLeadMinutes())) {
+            choice.getItems().add(workout.getReminderLeadMinutes());
+        }
+        choice.setValue(workout.getReminderLeadMinutes());
+        choice.setPrefWidth(220);
+        choice.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Integer minutes) {
+                return minutes == null || minutes == 0 ? "No reminder"
+                        : ReminderService.humanise(minutes) + " before";
+            }
+
+            @Override
+            public Integer fromString(String text) {
+                return choice.getValue();
+            }
+        });
+        Label error = new Label();
+        error.setWrapText(true);
+        error.setStyle("-fx-text-fill: #DC2626;");
+        Label explanation = new Label("Choose when to be reminded before this workout starts.");
+        explanation.setWrapText(true);
+        VBox content = new VBox(12, explanation, choice, error);
+        content.setPadding(new Insets(12));
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Edit reminder");
+        dialog.setHeaderText(workout.getName());
+        dialog.getDialogPane().setContent(content);
+        ButtonType save = new ButtonType("Save", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+        Button saveButton = (Button) dialog.getDialogPane().lookupButton(save);
+        saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            try {
+                if (choice.getValue() == null) {
+                    throw new IllegalArgumentException("Please choose a reminder time.");
+                }
+                reminderSettings.updateReminder(workout.getId(), choice.getValue());
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                error.setText(e.getMessage());
+                event.consume();
+            }
+        });
+        if (dialog.showAndWait().filter(button -> button == save).isPresent()) {
+            refreshRows();
+        }
+    }
+
+    /** Lets the model validate status changes before they are persisted. */
     private void setStatus(ScheduledWorkout workout, ScheduleStatus target) {
         try {
             ScheduledWorkout updated = workout.withStatus(target);

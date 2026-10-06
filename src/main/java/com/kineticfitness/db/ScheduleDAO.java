@@ -225,14 +225,19 @@ public class ScheduleDAO {
 
     /** Changes how far ahead the user is reminded, or switches the reminder off with 0. */
     public void updateReminderLead(int id, int reminderLeadMinutes) {
+        if (id <= 0 || reminderLeadMinutes < 0) {
+            throw new IllegalArgumentException("Invalid workout or reminder time.");
+        }
         Connection connection = DatabaseConnection.getInstance();
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE scheduled_workouts SET reminder_minutes = ? WHERE id = ?")) {
-            statement.setInt(1, Math.max(reminderLeadMinutes, 0));
+            statement.setInt(1, reminderLeadMinutes);
             statement.setInt(2, id);
-            statement.executeUpdate();
+            if (statement.executeUpdate() != 1) {
+                throw new IllegalArgumentException("This workout no longer exists. Refresh the schedule.");
+            }
         } catch (SQLException e) {
-            System.err.println("Failed to update reminder: " + e.getMessage());
+            throw new IllegalStateException("Could not save the reminder. Please try again.", e);
         }
     }
 
