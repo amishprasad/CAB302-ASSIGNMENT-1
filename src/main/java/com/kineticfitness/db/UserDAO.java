@@ -39,18 +39,18 @@ public class UserDAO {
     }
 
     /** Used by the Settings page to change a signed-in user's password. */
-    public void updatePassword(String username, String newHashedPassword) {
+    public boolean updatePassword(String username, String newHashedPassword) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "UPDATE users SET password = ? WHERE username = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, newHashedPassword);
             statement.setString(2, username);
-            statement.executeUpdate();
+            return statement.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Failed to update password: " + e.getMessage());
+            return false;
         }
     }
-
 
     /**
      * Creates a brand-new account for the register page. The raw password is hashed

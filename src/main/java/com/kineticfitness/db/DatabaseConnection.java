@@ -30,6 +30,7 @@ public class DatabaseConnection {
                 instance = DriverManager.getConnection(url);   // note: url, not URL
                 createTables(instance);
                 ScheduleDAO.migrate(instance);   // upgrades a pre-existing schedule table in place
+                WorkoutDAO.migrate(instance);    // adds the name column to a pre-existing workouts table
             } catch (SQLException e) {
                 System.err.println("Failed to connect to database: " + e.getMessage());
             }
@@ -57,6 +58,7 @@ public class DatabaseConnection {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     workout_date TEXT NOT NULL,
+                    name TEXT,
                         FOREIGN KEY (user_id) REFERENCES users(id)
                 )
             """);
@@ -92,6 +94,16 @@ public class DatabaseConnection {
                     status TEXT NOT NULL DEFAULT 'SCHEDULED',
                     reminder_minutes INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """);
+            statement.execute("""
+                CREATE TABLE IF NOT EXISTS preferences (
+                    id INTEGER PRIMARY KEY,
+                    unit_system TEXT NOT NULL DEFAULT 'METRIC',
+                    notify_workout_reminders INTEGER NOT NULL DEFAULT 1,
+                    notify_goal_alerts INTEGER NOT NULL DEFAULT 1,
+                    notify_weekly_summary INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (id) REFERENCES users(id)
                 )
             """);
             statement.execute("""

@@ -1,5 +1,7 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.util.UnitSystem;
+
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -35,6 +37,12 @@ public class LocalProfileStore {
     public final Set<String> preferredWorkoutTypes = new LinkedHashSet<>();
     public final Set<String> preferredWorkoutDays = new LinkedHashSet<>();
 
+    // ---- App preferences (Settings page) ----
+    public UnitSystem unitSystem = UnitSystem.METRIC;
+    public boolean notifyWorkoutReminders = true;
+    public boolean notifyGoalAlerts = true;
+    public boolean notifyWeeklySummary = false;
+
     /** Set automatically the first time a goal is saved; preserved across edits. */
     public LocalDate goalStartDate = null;
     /** The deadline the user picked for the goal. */
@@ -66,6 +74,10 @@ public class LocalProfileStore {
         goalTargetDate = null;
         goalAchievedDate = null;
         milestones.clear();
+        unitSystem = UnitSystem.METRIC;
+        notifyWorkoutReminders = true;
+        notifyGoalAlerts = true;
+        notifyWeeklySummary = false;
     }
 
     public boolean hasPersonalDetails() {

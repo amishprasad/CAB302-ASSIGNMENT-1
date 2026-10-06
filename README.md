@@ -1,3 +1,4 @@
+![Build](https://github.com/amishprasad/CAB302-ASSIGNMENT-1/actions/workflows/build.yml/badge.svg)
 # Kinetic Fitness
 
 ## Team workflow

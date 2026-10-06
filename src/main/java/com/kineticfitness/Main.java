@@ -4,6 +4,7 @@ import com.kineticfitness.db.DatabaseConnection;
 import com.kineticfitness.db.ProfileDAO;
 import com.kineticfitness.db.ScheduleDAO;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.db.PreferencesDAO;
 import com.kineticfitness.view.*;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -72,6 +73,7 @@ public class Main extends Application {
         LocalProfileStore store = LocalProfileStore.getInstance();
         store.clear();
         new ProfileDAO().load(store, username);
+        new PreferencesDAO().load(store, username);
     }
 
     /**
