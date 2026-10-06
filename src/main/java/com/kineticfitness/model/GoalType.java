@@ -19,6 +19,17 @@ public enum GoalType {
         public boolean isReached(double currentWeightKg, double targetWeightKg) {
             return currentWeightKg <= targetWeightKg;
         }
+
+        @Override
+        public String description() {
+            return "Your goal is to lose weight and improve your overall fitness and health "
+                    + "through regular exercise and a balanced routine.";
+        }
+
+        @Override
+        public String motivation() {
+            return "\u201CA healthier you is a happier you!\u201D";
+        }
     },
 
     /** Reached once the user is at or above the target. */
@@ -26,6 +37,17 @@ public enum GoalType {
         @Override
         public boolean isReached(double currentWeightKg, double targetWeightKg) {
             return currentWeightKg >= targetWeightKg;
+        }
+
+        @Override
+        public String description() {
+            return "Your goal is to build muscle and strength through consistent resistance "
+                    + "training and steady progression.";
+        }
+
+        @Override
+        public String motivation() {
+            return "\u201CStrength comes from what you keep showing up for.\u201D";
         }
     },
 
@@ -40,6 +62,17 @@ public enum GoalType {
         public boolean isMeasurable() {
             return false;
         }
+
+        @Override
+        public String description() {
+            return "Your goal is to improve your endurance and general fitness through regular, "
+                    + "varied exercise.";
+        }
+
+        @Override
+        public String motivation() {
+            return "\u201CEvery session counts, however small.\u201D";
+        }
     },
 
     /** Reached while the user stays within {@link #MAINTAIN_TOLERANCE_KG} of the target. */
@@ -47,6 +80,17 @@ public enum GoalType {
         @Override
         public boolean isReached(double currentWeightKg, double targetWeightKg) {
             return Math.abs(currentWeightKg - targetWeightKg) <= MAINTAIN_TOLERANCE_KG;
+        }
+
+        @Override
+        public String description() {
+            return "Your goal is to maintain your current weight and stay consistent with a "
+                    + "balanced routine.";
+        }
+
+        @Override
+        public String motivation() {
+            return "\u201CConsistency beats intensity.\u201D";
         }
     };
 
@@ -67,6 +111,12 @@ public enum GoalType {
      * @return true when this goal's own rule is satisfied
      */
     public abstract boolean isReached(double currentWeightKg, double targetWeightKg);
+
+    /** A sentence explaining what this goal means, shown on the goal summary. */
+    public abstract String description();
+
+    /** A short encouragement suited to this goal. */
+    public abstract String motivation();
 
     /**
      * Whether progress toward this goal can be measured from weight alone.

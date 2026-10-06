@@ -234,11 +234,6 @@ public class GoalsView implements Page {
         cancelButton.setStyle("-fx-background-color: " + PAGE_BG + "; -fx-text-fill: " + TITLE_COLOR + ";");
         cancelButton.setOnAction(e -> refresh());
 
-        Label savedLabel = new Label("Goal saved.");
-        savedLabel.setStyle("-fx-text-fill: #15803d; -fx-font-size: 13px; -fx-font-weight: bold;");
-        savedLabel.setVisible(false);
-        savedLabel.setManaged(false);
-
         Button saveButton = new Button("Save Goal");
         saveButton.setPrefHeight(40);
         saveButton.setPrefWidth(140);
@@ -283,14 +278,12 @@ public class GoalsView implements Page {
 
             errorLabel.setVisible(false);
             errorLabel.setManaged(false);
-            savedLabel.setManaged(true);
-            savedLabel.setVisible(true);
             refresh();
         });
 
         Region buttonSpacer = new Region();
         HBox.setHgrow(buttonSpacer, Priority.ALWAYS);
-        HBox buttonRow = new HBox(12, cancelButton, savedLabel, buttonSpacer, saveButton);
+        HBox buttonRow = new HBox(12, cancelButton, buttonSpacer, saveButton);
         buttonRow.setAlignment(Pos.CENTER_LEFT);
 
         card.getChildren().addAll(goalTypeBlock, row1, row2, typesBlock, daysBlock,
@@ -779,34 +772,19 @@ public class GoalsView implements Page {
         return n + " " + unit + (n == 1 ? "" : "s");
     }
 
+    /** The goal type currently stored, or null when no goal is set. */
+    private GoalType goalType() {
+        return store.primaryGoal == null ? null : GoalType.valueOf(store.primaryGoal.name());
+    }
+
     private String goalBlurb() {
-        switch (store.primaryGoal) {
-            case LOSE_WEIGHT:
-                return "Your goal is to lose weight and improve your overall fitness and health "
-                        + "through regular exercise and a balanced routine.";
-            case GAIN_MUSCLE:
-                return "Your goal is to build muscle and strength through consistent resistance "
-                        + "training and steady progression.";
-            case IMPROVE_FITNESS:
-                return "Your goal is to improve your endurance and general fitness through regular, "
-                        + "varied exercise.";
-            default:
-                return "Your goal is to maintain your current weight and stay consistent with a "
-                        + "balanced routine.";
-        }
+        GoalType type = goalType();
+        return type == null ? "" : type.description();
     }
 
     private String motivationQuote() {
-        switch (store.primaryGoal) {
-            case LOSE_WEIGHT:
-                return "“A healthier you is a happier you!”";
-            case GAIN_MUSCLE:
-                return "“Strength comes from what you keep showing up for.”";
-            case IMPROVE_FITNESS:
-                return "“Every session counts, however small.”";
-            default:
-                return "“Consistency beats intensity.”";
-        }
+        GoalType type = goalType();
+        return type == null ? "" : type.motivation();
     }
 
     private VBox sectionBlock(String title, String helpText, Node content) {
