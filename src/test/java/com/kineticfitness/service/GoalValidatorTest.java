@@ -16,8 +16,13 @@ class GoalValidatorTest {
 
     private ValidationResult validate(String weight, LocalDate target,
                                       boolean types, boolean days) {
-        return GoalValidator.validate(GoalType.LOSE_WEIGHT, weight, target,
-                FitnessLevel.BEGINNER, types, days, TODAY);
+        return validate(weight, 150, 3, target, types, days);
+    }
+
+    private ValidationResult validate(String weight, Integer minutes, Integer workouts,
+                                      LocalDate target, boolean types, boolean days) {
+        return GoalValidator.validate(GoalType.LOSE_WEIGHT, weight, minutes, workouts,
+                target, FitnessLevel.BEGINNER, types, days, TODAY);
     }
 
     @Test
@@ -46,6 +51,27 @@ class GoalValidatorTest {
     @Test
     void rejectsAnImplausiblyHeavyTarget() {
         assertTrue(validate("500", LATER, true, true).isInvalid());
+    }
+
+    @Test
+    void rejectsAWeeklyDurationTheUserNeverChose() {
+        ValidationResult r = validate("70", null, 3, LATER, true, true);
+        assertTrue(r.isInvalid());
+        assertEquals("Choose how long you want to exercise each week.", r.message());
+    }
+
+    @Test
+    void rejectsAWeeklyWorkoutGoalTheUserNeverChose() {
+        ValidationResult r = validate("70", 150, null, LATER, true, true);
+        assertTrue(r.isInvalid());
+        assertEquals("Choose how many workouts you want to do each week.", r.message());
+    }
+
+    @Test
+    void rejectsZeroOrNegativeWeeklyFigures() {
+        assertTrue(validate("70", 0, 3, LATER, true, true).isInvalid());
+        assertTrue(validate("70", 150, 0, LATER, true, true).isInvalid());
+        assertTrue(validate("70", -60, 3, LATER, true, true).isInvalid());
     }
 
     @Test

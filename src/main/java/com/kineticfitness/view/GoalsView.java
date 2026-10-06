@@ -149,8 +149,12 @@ public class GoalsView implements Page {
         ComboBox<Integer> durationBox = new ComboBox<>();
         for (int mins : new int[]{60, 90, 120, 150, 180, 240, 300}) durationBox.getItems().add(mins);
         int storedDuration = store.weeklyExerciseDurationMinutes;
-        if (!durationBox.getItems().contains(storedDuration)) durationBox.getItems().add(storedDuration);
-        durationBox.setValue(hasGoals ? storedDuration : 150);
+        boolean hasStoredDuration = hasGoals && storedDuration > 0;
+        if (hasStoredDuration && !durationBox.getItems().contains(storedDuration)) {
+            durationBox.getItems().add(storedDuration);
+        }
+        durationBox.setValue(hasStoredDuration ? storedDuration : null);
+        durationBox.setPromptText("Choose an option");
         durationBox.setMaxWidth(Double.MAX_VALUE);
         durationBox.setPrefHeight(38);
         durationBox.setConverter(new StringConverter<>() {
@@ -166,7 +170,13 @@ public class GoalsView implements Page {
         // Weekly workout goal
         ComboBox<Integer> weeklyWorkoutBox = new ComboBox<>();
         for (int i = 1; i <= 7; i++) weeklyWorkoutBox.getItems().add(i);
-        weeklyWorkoutBox.setValue(hasGoals ? Math.max(1, Math.min(7, store.weeklyWorkoutGoal)) : 3);
+        // Nothing is pre-selected for a new goal. A number the user never chose
+        // is a number they will not notice is wrong, so the form asks instead of
+        // guessing and GoalValidator refuses to save until they answer.
+        weeklyWorkoutBox.setValue(hasGoals && store.weeklyWorkoutGoal > 0
+                ? Math.max(1, Math.min(7, store.weeklyWorkoutGoal))
+                : null);
+        weeklyWorkoutBox.setPromptText("Choose an option");
         weeklyWorkoutBox.setMaxWidth(Double.MAX_VALUE);
         weeklyWorkoutBox.setPrefHeight(38);
         weeklyWorkoutBox.setConverter(new StringConverter<>() {
@@ -176,9 +186,8 @@ public class GoalsView implements Page {
         VBox weeklyWorkoutBlock = sectionBlock("Weekly Workout Goal", "How many workouts per week?", weeklyWorkoutBox);
 
         DatePicker targetDatePicker = new DatePicker();
-        targetDatePicker.setValue(store.goalTargetDate != null
-                ? store.goalTargetDate : LocalDate.now().plusMonths(3));
-        targetDatePicker.setPromptText("Pick a date");
+        targetDatePicker.setValue(hasGoals ? store.goalTargetDate : null);
+        targetDatePicker.setPromptText("Choose a date");
         targetDatePicker.setMaxWidth(Double.MAX_VALUE);
         targetDatePicker.setPrefHeight(38);
         VBox targetDateBlock = sectionBlock("Target Date", "When do you want to reach this goal?", targetDatePicker);
@@ -246,6 +255,8 @@ public class GoalsView implements Page {
             ValidationResult result = GoalValidator.validate(
                     type,
                     targetWeightField.getText(),
+                    durationBox.getValue(),
+                    weeklyWorkoutBox.getValue(),
                     targetDatePicker.getValue(),
                     experience,
                     hasSelection(typesRow),
