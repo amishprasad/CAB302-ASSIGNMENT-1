@@ -207,23 +207,21 @@ public class GoalsView implements Page {
         }
         VBox daysBlock = sectionBlock("Preferred Workout Days", "Select your preferred days", daysRow);
 
-        // Experience level
-        ToggleGroup experienceGroup = new ToggleGroup();
-        HBox experienceRow = new HBox(12);
-        for (LocalProfileStore.FitnessLevel level : LocalProfileStore.FitnessLevel.values()) {
-            ToggleButton btn = new ToggleButton(formatEnum(level.name()));
-            btn.setUserData(level);
-            btn.setToggleGroup(experienceGroup);
-            btn.setMaxWidth(Double.MAX_VALUE);
-            btn.setPrefHeight(44);
-            HBox.setHgrow(btn, Priority.ALWAYS);
-            boolean selected = level == store.experienceLevel;
-            styleExperienceCard(btn, selected);
-            btn.selectedProperty().addListener((obs, was, isNow) -> styleExperienceCard(btn, isNow));
-            if (selected) btn.setSelected(true);
-            experienceRow.getChildren().add(btn);
-        }
-        VBox experienceBlock = sectionBlock("Experience Level", "Your current fitness level", experienceRow);
+        // Experience level: chosen once when the profile is created and shown here
+        // read-only, so a goal can never disagree with the profile it belongs to.
+        Label experienceValue = new Label(profileLevel().display());
+        experienceValue.setPrefHeight(44);
+        experienceValue.setMaxWidth(Double.MAX_VALUE);
+        experienceValue.setAlignment(Pos.CENTER_LEFT);
+        experienceValue.setPadding(new Insets(0, 16, 0, 16));
+        experienceValue.setStyle("-fx-background-color: " + ACCENT_BG + "; -fx-text-fill: " + ACCENT + "; "
+                + "-fx-border-color: " + ACCENT + "; -fx-border-width: 2; -fx-border-radius: 6; "
+                + "-fx-background-radius: 6; -fx-font-size: 14px; -fx-font-weight: bold;");
+        HBox experienceRow = new HBox(experienceValue);
+        HBox.setHgrow(experienceValue, Priority.ALWAYS);
+        VBox experienceBlock = sectionBlock("Experience Level",
+                "Set when you created your profile \u2014 change it from the Profile page",
+                experienceRow);
 
         Separator divider = new Separator();
         VBox.setMargin(divider, new Insets(6, 0, 0, 0));
@@ -242,7 +240,7 @@ public class GoalsView implements Page {
             // The view only gathers what the user picked. The rules live in
             // GoalValidator, and the goal itself is a FitnessGoal, not loose fields.
             GoalType type = selectedGoalType(goalGroup);
-            FitnessLevel experience = selectedExperience(experienceGroup);
+            FitnessLevel experience = profileLevel();
             LocalDate startDate = store.goalStartDate != null ? store.goalStartDate : LocalDate.now();
 
             ValidationResult result = GoalValidator.validate(
@@ -422,7 +420,7 @@ public class GoalsView implements Page {
                 detailRow("Weekly Workout Goal", store.weeklyWorkoutGoal + " workouts per week"),
                 detailRow("Preferred Workout Types", joinOrDash(store.preferredWorkoutTypes)),
                 detailRow("Preferred Workout Days", joinOrDash(store.preferredWorkoutDays)),
-                detailRow("Experience Level", formatEnum(store.experienceLevel.name())));
+                detailRow("Experience Level", profileLevel().display()));
 
         HBox.setHgrow(details, Priority.ALWAYS);
 
@@ -588,10 +586,15 @@ public class GoalsView implements Page {
                 : GoalType.valueOf(((LocalProfileStore.PrimaryGoal) picked.getUserData()).name());
     }
 
-    private FitnessLevel selectedExperience(ToggleGroup group) {
-        Toggle picked = group.getSelectedToggle();
-        return picked == null ? null
-                : FitnessLevel.valueOf(((LocalProfileStore.FitnessLevel) picked.getUserData()).name());
+    /**
+     * The fitness level the user chose on their profile. The goals screen displays
+     * it but never changes it, so there is only ever one answer to "how experienced
+     * am I" and the profile owns it.
+     */
+    private FitnessLevel profileLevel() {
+        return store.fitnessLevel == null
+                ? FitnessLevel.BEGINNER
+                : FitnessLevel.valueOf(store.fitnessLevel.name());
     }
 
     private boolean hasSelection(HBox row) {
@@ -797,25 +800,9 @@ public class GoalsView implements Page {
         return box;
     }
 
-    private String formatEnum(String name) {
-        String s = name.toLowerCase();
-        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
-    }
-
     private void styleGoalTypeCard(ToggleButton btn, boolean selected) {
         if (selected) {
             btn.setStyle("-fx-background-color: " + SELECTED_DARK_BG + "; -fx-text-fill: white; "
-                    + "-fx-border-color: " + ACCENT + "; -fx-border-width: 2; -fx-border-radius: 6; "
-                    + "-fx-background-radius: 6; -fx-font-weight: bold;");
-        } else {
-            btn.setStyle("-fx-background-color: white; -fx-text-fill: " + TITLE_COLOR + "; "
-                    + "-fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6;");
-        }
-    }
-
-    private void styleExperienceCard(ToggleButton btn, boolean selected) {
-        if (selected) {
-            btn.setStyle("-fx-background-color: " + ACCENT_BG + "; -fx-text-fill: " + ACCENT + "; "
                     + "-fx-border-color: " + ACCENT + "; -fx-border-width: 2; -fx-border-radius: 6; "
                     + "-fx-background-radius: 6; -fx-font-weight: bold;");
         } else {

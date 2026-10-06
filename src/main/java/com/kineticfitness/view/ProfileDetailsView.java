@@ -62,13 +62,12 @@ public class ProfileDetailsView implements Page {
                                         ComboBox<LocalProfileStore.Gender> genderBox,
                                         DatePicker dobPicker, TextField heightField,
                                         TextField weightField,
-                                        ComboBox<LocalProfileStore.FitnessLevel> fitnessBox,
+                                        ComboBox<FitnessLevel> fitnessBox,
                                         String photoPath, Label errorLabel) {
 
         Gender gender = genderBox.getValue() == null ? null
                 : Gender.valueOf(genderBox.getValue().name());
-        FitnessLevel level = fitnessBox.getValue() == null ? null
-                : FitnessLevel.valueOf(fitnessBox.getValue().name());
+        FitnessLevel level = fitnessBox.getValue();
 
         ValidationResult result = ProfileValidator.validate(
                 nameField.getText(), emailField.getText(), gender, dobPicker.getValue(),
@@ -318,7 +317,7 @@ public class ProfileDetailsView implements Page {
                 statColumn("Date of Birth", store.dateOfBirth != null ? store.dateOfBirth.toString() : "DD/MM/YYYY"),
                 statColumn("Height", String.format("%.0f cm", store.heightCm)),
                 statColumn("Weight", String.format("%.0f kg", store.weightKg)),
-                statColumn("Fitness Level", formatEnum(store.fitnessLevel.name()))
+                statColumn("Fitness Level", levelLabel())
         );
 
         Separator divider = new Separator();
@@ -387,21 +386,28 @@ public class ProfileDetailsView implements Page {
         return email == null ? "" : email;
     }
 
-    /** Shows fitness-level enums as "Beginner"/"Intermediate"/"Advanced" instead of raw names. */
-    private StringConverter<LocalProfileStore.FitnessLevel> fitnessConverter(ComboBox<LocalProfileStore.FitnessLevel> box) {
+    /** The level the profile already holds, or null when none has been chosen yet. */
+    private FitnessLevel storedLevel() {
+        return store.fitnessLevel == null ? null
+                : FitnessLevel.valueOf(store.fitnessLevel.name());
+    }
+
+    /** The stored level's label, or a dash when the profile has none. */
+    private String levelLabel() {
+        FitnessLevel level = storedLevel();
+        return level == null ? "\u2014" : level.display();
+    }
+
+    /** Lets each level supply its own label, so ADVANCED reads as "Pro". */
+    private StringConverter<FitnessLevel> fitnessConverter(ComboBox<FitnessLevel> box) {
         return new StringConverter<>() {
-            @Override public String toString(LocalProfileStore.FitnessLevel fl) {
-                return fl == null ? "" : formatEnum(fl.name());
+            @Override public String toString(FitnessLevel fl) {
+                return fl == null ? "" : fl.display();
             }
-            @Override public LocalProfileStore.FitnessLevel fromString(String s) {
+            @Override public FitnessLevel fromString(String s) {
                 return box.getValue();
             }
         };
-    }
-
-    private String formatEnum(String name) {
-        String s = name.toLowerCase();
-        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     private Label fieldLabel(String text) {
@@ -551,9 +557,13 @@ public class ProfileDetailsView implements Page {
         weightField.setPromptText("70");
         weightField.setPrefHeight(38);
 
-        ComboBox<LocalProfileStore.FitnessLevel> fitnessBox = new ComboBox<>();
-        fitnessBox.getItems().addAll(LocalProfileStore.FitnessLevel.values());
-        fitnessBox.setValue(store.fitnessLevel);
+        // Left deliberately empty. The store defaults to BEGINNER, so pre-selecting
+        // it would let someone create a profile without ever making the choice;
+        // ProfileValidator refuses the form while this is null.
+        ComboBox<FitnessLevel> fitnessBox = new ComboBox<>();
+        fitnessBox.getItems().addAll(FitnessLevel.values());
+        fitnessBox.setValue(null);
+        fitnessBox.setPromptText("Choose an option");
         fitnessBox.setMaxWidth(Double.MAX_VALUE);
         fitnessBox.setPrefHeight(38);
         fitnessBox.setConverter(fitnessConverter(fitnessBox));
@@ -695,9 +705,10 @@ public class ProfileDetailsView implements Page {
         TextField weightField = new TextField(String.valueOf(store.weightKg));
         weightField.setPrefHeight(38);
 
-        ComboBox<LocalProfileStore.FitnessLevel> fitnessBox = new ComboBox<>();
-        fitnessBox.getItems().addAll(LocalProfileStore.FitnessLevel.values());
-        fitnessBox.setValue(store.fitnessLevel);
+        ComboBox<FitnessLevel> fitnessBox = new ComboBox<>();
+        fitnessBox.getItems().addAll(FitnessLevel.values());
+        fitnessBox.setValue(storedLevel());
+        fitnessBox.setPromptText("Choose an option");
         fitnessBox.setMaxWidth(Double.MAX_VALUE);
         fitnessBox.setPrefHeight(38);
         fitnessBox.setConverter(fitnessConverter(fitnessBox));
