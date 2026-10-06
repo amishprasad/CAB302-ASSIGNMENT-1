@@ -30,6 +30,7 @@ public class DatabaseConnection {
                 instance = DriverManager.getConnection(url);   // note: url, not URL
                 createTables(instance);
                 ScheduleDAO.migrate(instance);   // upgrades a pre-existing schedule table in place
+                WorkoutDAO.migrate(instance);    // adds the name column to a pre-existing workouts table
             } catch (SQLException e) {
                 System.err.println("Failed to connect to database: " + e.getMessage());
             }
@@ -57,6 +58,7 @@ public class DatabaseConnection {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     workout_date TEXT NOT NULL,
+                    name TEXT,
                         FOREIGN KEY (user_id) REFERENCES users(id)
                 )
             """);
