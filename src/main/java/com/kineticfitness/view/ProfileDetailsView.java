@@ -14,11 +14,16 @@ import javafx.util.StringConverter;
 
 import java.io.File;
 import java.time.LocalDate;
-import java.time.Period;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.Locale;
 import com.kineticfitness.db.ProfileDAO;
+import com.kineticfitness.model.FitnessLevel;
+import com.kineticfitness.model.Gender;
+import com.kineticfitness.model.PersonalDetails;
+import com.kineticfitness.service.PersonalDetailsMapper;
+import com.kineticfitness.service.ProfileValidator;
+import com.kineticfitness.service.ValidationResult;
 import com.kineticfitness.db.UserDAO;
 import com.kineticfitness.session.UserSession;
 
@@ -47,8 +52,40 @@ public class ProfileDetailsView implements Page {
     }
 
     private int calculatedAge() {
-        if (store.dateOfBirth == null) return 0;
-        return Period.between(store.dateOfBirth, LocalDate.now()).getYears();
+        return PersonalDetailsMapper.toDetails(store)
+                .map(details -> details.age(LocalDate.now()))
+                .orElse(0);
+    }
+
+    /** The form's current values as a validated domain object, or null if invalid. */
+    private PersonalDetails readDetails(TextField nameField, TextField emailField,
+                                        ComboBox<LocalProfileStore.Gender> genderBox,
+                                        DatePicker dobPicker, TextField heightField,
+                                        TextField weightField,
+                                        ComboBox<LocalProfileStore.FitnessLevel> fitnessBox,
+                                        String photoPath, Label errorLabel) {
+
+        Gender gender = genderBox.getValue() == null ? null
+                : Gender.valueOf(genderBox.getValue().name());
+        FitnessLevel level = fitnessBox.getValue() == null ? null
+                : FitnessLevel.valueOf(fitnessBox.getValue().name());
+
+        ValidationResult result = ProfileValidator.validate(
+                nameField.getText(), emailField.getText(), gender, dobPicker.getValue(),
+                heightField.getText(), weightField.getText(), level, LocalDate.now());
+
+        if (result.isInvalid()) {
+            errorLabel.setText(result.message());
+            errorLabel.setVisible(true);
+            return null;
+        }
+
+        return new PersonalDetails(
+                nameField.getText(), emailField.getText(), gender, photoPath,
+                dobPicker.getValue(),
+                ProfileValidator.parseMeasurement(heightField.getText()).getAsDouble(),
+                ProfileValidator.parseMeasurement(weightField.getText()).getAsDouble(),
+                level);
     }
 
     private void refresh() {
@@ -576,56 +613,17 @@ public class ProfileDetailsView implements Page {
         continueButton.setPrefHeight(42);
         continueButton.setStyle("-fx-background-color: " + ACCENT + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
         continueButton.setOnAction(e -> {
-            String name = firstNameField.getText().trim();
-            String email = emailField.getText().trim();
-            LocalProfileStore.Gender gender = genderBox.getValue();
-            LocalDate dob = dobPicker.getValue();
-            String heightText = heightField.getText().trim();
-            String weightText = weightField.getText().trim();
-            LocalProfileStore.FitnessLevel level = fitnessBox.getValue();
-
-            if (name.isEmpty() || email.isEmpty() || gender == null || dob == null || heightText.isEmpty()
-                    || weightText.isEmpty() || level == null) {
-                errorLabel.setText("Please fill in every field before continuing.");
-                errorLabel.setVisible(true);
+            PersonalDetails details = readDetails(firstNameField, emailField, genderBox,
+                    dobPicker, heightField, weightField, fitnessBox,
+                    photoPathHolder[0], errorLabel);
+            if (details == null) {
                 return;
             }
-            if (!email.contains("@") || !email.contains(".")) {
-                errorLabel.setText("Enter a valid email address.");
-                errorLabel.setVisible(true);
-                return;
-            }
-            if (dob.isAfter(LocalDate.now())) {
-                errorLabel.setText("Date of birth can't be in the future.");
-                errorLabel.setVisible(true);
-                return;
-            }
-            try {
-                double newHeight = Double.parseDouble(heightText);
-                double newWeight = Double.parseDouble(weightText);
-                if (newHeight <= 0 || newWeight <= 0) {
-                    errorLabel.setText("Height and weight must be positive numbers.");
-                    errorLabel.setVisible(true);
-                    return;
-                }
-
-                store.firstName = name;
-                store.email = email;
-                store.gender = gender;
-                store.photoPath = photoPathHolder[0];
-                store.dateOfBirth = dob;
-                store.heightCm = newHeight;
-                store.weightKg = newWeight;
-                store.fitnessLevel = level;
-                store.experienceLevel = level; // default until goals are set
-
-                new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());
-                refresh();
-
-            } catch (NumberFormatException ex) {
-                errorLabel.setText("Height and weight must be valid numbers.");
-                errorLabel.setVisible(true);
-            }
+            // Seed the goals screen's experience level from the fitness level
+            // chosen here, so a new user never starts with it unset.
+            PersonalDetailsMapper.apply(details, store, true);
+            new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());
+            refresh();
         });
 
         card.getChildren().addAll(grid, errorLabel, continueButton);
@@ -772,42 +770,16 @@ public class ProfileDetailsView implements Page {
         HBox.setHgrow(saveButton, Priority.ALWAYS);
         saveButton.setStyle("-fx-background-color: " + ACCENT + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
         saveButton.setOnAction(e -> {
-            try {
-                String name = firstNameField.getText().trim();
-                String email = emailField.getText().trim();
-                LocalProfileStore.Gender gender = genderBox.getValue();
-                LocalDate dob = dobPicker.getValue();
-                double newHeight = Double.parseDouble(heightField.getText().trim());
-                double newWeight = Double.parseDouble(weightField.getText().trim());
-
-                if (name.isEmpty() || email.isEmpty() || gender == null || dob == null
-                        || newHeight <= 0 || newWeight <= 0) {
-                    errorLabel.setText("Please check all fields are filled in with valid values.");
-                    errorLabel.setVisible(true);
-                    return;
-                }
-                if (!email.contains("@") || !email.contains(".")) {
-                    errorLabel.setText("Enter a valid email address.");
-                    errorLabel.setVisible(true);
-                    return;
-                }
-
-                store.firstName = name;
-                store.email = email;
-                store.gender = gender;
-                store.photoPath = photoPathHolder[0];
-                store.dateOfBirth = dob;
-                store.heightCm = newHeight;
-                store.weightKg = newWeight;
-                store.fitnessLevel = fitnessBox.getValue();
-                new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());   // persist edits
-
-                container.getChildren().setAll(buildDetailsView());
-
-            } catch (NumberFormatException ex) {
-                errorLabel.setText("Height and weight must be valid numbers.");
-                errorLabel.setVisible(true);
+            PersonalDetails details = readDetails(firstNameField, emailField, genderBox,
+                    dobPicker, heightField, weightField, fitnessBox,
+                    photoPathHolder[0], errorLabel);
+            if (details == null) {
+                return;
             }
+            // An edit must not reset the experience level the goals screen owns.
+            PersonalDetailsMapper.apply(details, store, false);
+            new ProfileDAO().save(store, UserSession.getCurrentUser().getUsername());
+            container.getChildren().setAll(buildDetailsView());
         });
 
         Button cancelButton = new Button("Cancel");

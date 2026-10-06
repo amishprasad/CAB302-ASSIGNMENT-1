@@ -1,6 +1,12 @@
 package com.kineticfitness.view;
 
 import com.kineticfitness.db.ProfileDAO;
+import com.kineticfitness.model.FitnessGoal;
+import com.kineticfitness.model.FitnessLevel;
+import com.kineticfitness.model.GoalType;
+import com.kineticfitness.service.GoalValidator;
+import com.kineticfitness.service.ProfileGoalMapper;
+import com.kineticfitness.service.ValidationResult;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -228,100 +234,56 @@ public class GoalsView implements Page {
         cancelButton.setStyle("-fx-background-color: " + PAGE_BG + "; -fx-text-fill: " + TITLE_COLOR + ";");
         cancelButton.setOnAction(e -> refresh());
 
-        Label savedLabel = new Label("Goal saved.");
-        savedLabel.setStyle("-fx-text-fill: #15803d; -fx-font-size: 13px; -fx-font-weight: bold;");
-        savedLabel.setVisible(false);
-        savedLabel.setManaged(false);
-
         Button saveButton = new Button("Save Goal");
         saveButton.setPrefHeight(40);
         saveButton.setPrefWidth(140);
         saveButton.setStyle("-fx-background-color: " + ACCENT + "; -fx-text-fill: white; -fx-font-weight: bold;");
         saveButton.setOnAction(e -> {
-            LocalProfileStore.PrimaryGoal type = (LocalProfileStore.PrimaryGoal)
-                    (goalGroup.getSelectedToggle() != null ? goalGroup.getSelectedToggle().getUserData() : null);
-            String targetWeightText = targetWeightField.getText().trim();
-            LocalProfileStore.FitnessLevel experience = (LocalProfileStore.FitnessLevel)
-                    (experienceGroup.getSelectedToggle() != null ? experienceGroup.getSelectedToggle().getUserData() : null);
-
-            if (type == null || targetWeightText.isEmpty() || experience == null) {
-                errorLabel.setText("Please choose a goal type, target weight, and experience level.");
-                errorLabel.setManaged(true);
-                errorLabel.setVisible(true);
-                return;
-            }
-
-            boolean anyTypeChecked = typesRow.getChildren().stream()
-                    .anyMatch(n -> n instanceof CheckBox cb && cb.isSelected());
-            boolean anyDayChecked = daysRow.getChildren().stream()
-                    .anyMatch(n -> n instanceof CheckBox cb && cb.isSelected());
-            LocalDate targetDate = targetDatePicker.getValue();
-            if (targetDate == null) {
-                errorLabel.setText("Pick a target date for this goal.");
-                errorLabel.setManaged(true);
-                errorLabel.setVisible(true);
-                return;
-            }
+            // The view only gathers what the user picked. The rules live in
+            // GoalValidator, and the goal itself is a FitnessGoal, not loose fields.
+            GoalType type = selectedGoalType(goalGroup);
+            FitnessLevel experience = selectedExperience(experienceGroup);
             LocalDate startDate = store.goalStartDate != null ? store.goalStartDate : LocalDate.now();
-            if (!targetDate.isAfter(startDate)) {
-                errorLabel.setText("Target date must be after the start date (" + formatDate(startDate) + ").");
+
+            ValidationResult result = GoalValidator.validate(
+                    type,
+                    targetWeightField.getText(),
+                    targetDatePicker.getValue(),
+                    experience,
+                    hasSelection(typesRow),
+                    hasSelection(daysRow),
+                    startDate);
+
+            if (result.isInvalid()) {
+                errorLabel.setText(result.message());
                 errorLabel.setManaged(true);
                 errorLabel.setVisible(true);
                 return;
             }
 
-            if (!anyTypeChecked || !anyDayChecked) {
-                errorLabel.setText("Pick at least one workout type and one workout day.");
-                errorLabel.setManaged(true);
-                errorLabel.setVisible(true);
-                return;
-            }
+            FitnessGoal goal = new FitnessGoal(
+                    type,
+                    GoalValidator.parseTargetWeight(targetWeightField.getText()).getAsDouble(),
+                    weeklyWorkoutBox.getValue(),
+                    durationBox.getValue(),
+                    experience,
+                    selectedLabels(typesRow),
+                    selectedLabels(daysRow),
+                    startDate,
+                    targetDatePicker.getValue(),
+                    null);
 
-            try {
-                double targetWeight = Double.parseDouble(targetWeightText);
-                if (targetWeight <= 0) {
-                    errorLabel.setText("Target weight must be a positive number.");
-                    errorLabel.setManaged(true);
-                    errorLabel.setVisible(true);
-                    return;
-                }
+            ProfileGoalMapper.apply(goal, store);
+            saveProfile();
 
-                store.primaryGoal = type;
-                store.targetWeightKg = targetWeight;
-                store.weeklyWorkoutGoal = weeklyWorkoutBox.getValue();
-                store.weeklyExerciseDurationMinutes = durationBox.getValue();
-                store.experienceLevel = experience;
-
-                store.preferredWorkoutTypes.clear();
-                for (Node n : typesRow.getChildren()) {
-                    if (n instanceof CheckBox cb && cb.isSelected()) store.preferredWorkoutTypes.add(cb.getText());
-                }
-                store.preferredWorkoutDays.clear();
-                for (Node n : daysRow.getChildren()) {
-                    if (n instanceof CheckBox cb && cb.isSelected()) store.preferredWorkoutDays.add(cb.getText());
-                }
-
-                store.goalStartDate = startDate;
-                store.goalTargetDate = targetDate;
-                store.goalAchievedDate = null;
-
-                saveProfile();
-                errorLabel.setVisible(false);
-                errorLabel.setManaged(false);
-                savedLabel.setManaged(true);
-                savedLabel.setVisible(true);
-                refresh();
-
-            } catch (NumberFormatException ex) {
-                errorLabel.setText("Target weight must be a valid number.");
-                errorLabel.setManaged(true);
-                errorLabel.setVisible(true);
-            }
+            errorLabel.setVisible(false);
+            errorLabel.setManaged(false);
+            refresh();
         });
 
         Region buttonSpacer = new Region();
         HBox.setHgrow(buttonSpacer, Priority.ALWAYS);
-        HBox buttonRow = new HBox(12, cancelButton, savedLabel, buttonSpacer, saveButton);
+        HBox buttonRow = new HBox(12, cancelButton, buttonSpacer, saveButton);
         buttonRow.setAlignment(Pos.CENTER_LEFT);
 
         card.getChildren().addAll(goalTypeBlock, row1, row2, typesBlock, daysBlock,
@@ -597,7 +559,11 @@ public class GoalsView implements Page {
         markDone.setStyle("-fx-background-color: " + SUCCESS_BG + "; -fx-text-fill: " + SUCCESS
                 + "; -fx-font-weight: bold; -fx-font-size: 13px; -fx-background-radius: 8;");
         markDone.setOnAction(e -> {
-            store.goalAchievedDate = java.time.LocalDate.now();
+            FitnessGoal goal = currentGoal();
+            if (goal == null || goal.isAchieved()) {
+                return;
+            }
+            ProfileGoalMapper.apply(goal.achievedOn(LocalDate.now()), store);
             saveProfile();
             refresh();
         });
@@ -607,43 +573,47 @@ public class GoalsView implements Page {
 
 
     private void clearGoal() {
-        store.primaryGoal = null;
-        store.targetWeightKg = 0;
-        store.weeklyWorkoutGoal = 4;
-        store.weeklyExerciseDurationMinutes = 240;
-        store.experienceLevel = store.fitnessLevel;
-        store.preferredWorkoutTypes.clear();
-        store.preferredWorkoutDays.clear();
-        store.goalStartDate = null;
-        store.goalTargetDate = null;
-        store.goalAchievedDate = null;
+        ProfileGoalMapper.clearGoal(store);
         saveProfile();
     }
 
+    /** The saved goal as a domain object, or null when none is set. */
+    private FitnessGoal currentGoal() {
+        return ProfileGoalMapper.toGoal(store).orElse(null);
+    }
+
+    private GoalType selectedGoalType(ToggleGroup group) {
+        Toggle picked = group.getSelectedToggle();
+        return picked == null ? null
+                : GoalType.valueOf(((LocalProfileStore.PrimaryGoal) picked.getUserData()).name());
+    }
+
+    private FitnessLevel selectedExperience(ToggleGroup group) {
+        Toggle picked = group.getSelectedToggle();
+        return picked == null ? null
+                : FitnessLevel.valueOf(((LocalProfileStore.FitnessLevel) picked.getUserData()).name());
+    }
+
+    private boolean hasSelection(HBox row) {
+        return row.getChildren().stream().anyMatch(n -> n instanceof CheckBox cb && cb.isSelected());
+    }
+
+    private java.util.Set<String> selectedLabels(HBox row) {
+        java.util.Set<String> picked = new java.util.LinkedHashSet<>();
+        for (Node n : row.getChildren()) {
+            if (n instanceof CheckBox cb && cb.isSelected()) {
+                picked.add(cb.getText());
+            }
+        }
+        return picked;
+    }
+
     /**
-     * Marks a weight-based goal achieved once the profile weight reaches the target.
-     * "Improve fitness" has no measurable target, so it is completed manually.
+     * Completes the goal if the profile weight has reached its target. The rule
+     * for "reached" belongs to {@link GoalType}, so this only persists the result.
      */
     private void checkAchievement() {
-        if (store.goalAchievedDate != null) return;
-        if (store.primaryGoal == null || store.targetWeightKg <= 0 || store.weightKg <= 0) return;
-
-        boolean reached;
-        switch (store.primaryGoal) {
-            case LOSE_WEIGHT:
-                reached = store.weightKg <= store.targetWeightKg;
-                break;
-            case GAIN_MUSCLE:
-                reached = store.weightKg >= store.targetWeightKg;
-                break;
-            case MAINTAIN_WEIGHT:
-                reached = Math.abs(store.weightKg - store.targetWeightKg) <= 1.0;
-                break;
-            default:
-                reached = false;
-        }
-        if (reached) {
-            store.goalAchievedDate = java.time.LocalDate.now();
+        if (ProfileGoalMapper.completeIfReached(store, LocalDate.now())) {
             saveProfile();
         }
     }
@@ -770,8 +740,9 @@ public class GoalsView implements Page {
     }
 
     private String remainingText() {
-        java.time.LocalDate today = java.time.LocalDate.now();
-        long days = java.time.temporal.ChronoUnit.DAYS.between(today, store.goalTargetDate);
+        FitnessGoal goal = currentGoal();
+        if (goal == null) return "";
+        long days = goal.daysRemaining(LocalDate.now());
         if (days == 0) {
             return "Today is your target date \u2014 " + formatDate(store.goalTargetDate) + ".";
         }
@@ -784,9 +755,10 @@ public class GoalsView implements Page {
 
     /** How the achieved date landed against the target date. */
     private String achievedMarginText() {
-        long days = java.time.temporal.ChronoUnit.DAYS.between(
-                store.goalAchievedDate, store.goalTargetDate);
-        String target = formatDate(store.goalTargetDate);
+        FitnessGoal goal = currentGoal();
+        if (goal == null || !goal.isAchieved()) return "";
+        long days = goal.daysAheadOfTarget();
+        String target = formatDate(goal.getTargetDate());
         if (days > 0) {
             return plural((int) days, "day") + " ahead of your target date of " + target + ".";
         }
@@ -800,34 +772,19 @@ public class GoalsView implements Page {
         return n + " " + unit + (n == 1 ? "" : "s");
     }
 
+    /** The goal type currently stored, or null when no goal is set. */
+    private GoalType goalType() {
+        return store.primaryGoal == null ? null : GoalType.valueOf(store.primaryGoal.name());
+    }
+
     private String goalBlurb() {
-        switch (store.primaryGoal) {
-            case LOSE_WEIGHT:
-                return "Your goal is to lose weight and improve your overall fitness and health "
-                        + "through regular exercise and a balanced routine.";
-            case GAIN_MUSCLE:
-                return "Your goal is to build muscle and strength through consistent resistance "
-                        + "training and steady progression.";
-            case IMPROVE_FITNESS:
-                return "Your goal is to improve your endurance and general fitness through regular, "
-                        + "varied exercise.";
-            default:
-                return "Your goal is to maintain your current weight and stay consistent with a "
-                        + "balanced routine.";
-        }
+        GoalType type = goalType();
+        return type == null ? "" : type.description();
     }
 
     private String motivationQuote() {
-        switch (store.primaryGoal) {
-            case LOSE_WEIGHT:
-                return "“A healthier you is a happier you!”";
-            case GAIN_MUSCLE:
-                return "“Strength comes from what you keep showing up for.”";
-            case IMPROVE_FITNESS:
-                return "“Every session counts, however small.”";
-            default:
-                return "“Consistency beats intensity.”";
-        }
+        GoalType type = goalType();
+        return type == null ? "" : type.motivation();
     }
 
     private VBox sectionBlock(String title, String helpText, Node content) {

@@ -19,12 +19,6 @@ import javafx.stage.Stage;
 
 import java.util.function.Consumer;
 
-/**
- * Full-window login screen shown before the {@link AppShell}. Verifies the entered
- * username/email and password against the {@code users} table via {@link UserDAO#authenticate}.
- * On success, hands the authenticated {@link User} back to whoever constructed this screen
- * (see {@code Main}) so it can set the session and launch the app shell.
- */
 public class Login {
 
     private static final String NAVY = "#0F172A";
@@ -37,6 +31,10 @@ public class Login {
             + " -fx-border-color: #E2E8F0; -fx-border-radius: 8; -fx-padding: 10;";
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 12;"
             + " -fx-border-color: #E2E8F0; -fx-border-radius: 12;";
+    private static final String PRIMARY_BUTTON = "-fx-background-color: " + ORANGE + "; -fx-text-fill: white;"
+            + " -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10;";
+    private static final String LINK_BUTTON = "-fx-background-color: transparent; -fx-text-fill: " + ORANGE + ";"
+            + " -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;";
 
     private final Stage stage;
     private final Consumer<User> onLoginSuccess;
@@ -44,11 +42,14 @@ public class Login {
     private final String infoMessage;
     private final UserDAO userDAO = new UserDAO();
 
+    private final TextField identifierField = new TextField();
+    private final PasswordField passwordField = new PasswordField();
+    private final Label error = new Label();
+
     public Login(Stage stage, Consumer<User> onLoginSuccess, Runnable onNavigateToRegister) {
         this(stage, onLoginSuccess, onNavigateToRegister, null);
     }
 
-    /** @param infoMessage optional banner (e.g. "Account created — please log in.") shown above the form. */
     public Login(Stage stage, Consumer<User> onLoginSuccess, Runnable onNavigateToRegister, String infoMessage) {
         this.stage = stage;
         this.onLoginSuccess = onLoginSuccess;
@@ -92,46 +93,27 @@ public class Login {
     }
 
     private StackPane buildFormPanel() {
-        TextField identifierField = new TextField();
-        identifierField.setPromptText("e.g. alexrivera or alex@email.com");
-        identifierField.setStyle(FIELD);
+        configureField(identifierField, "e.g. alexrivera or alex@email.com");
+        configureField(passwordField, "Your password");
 
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Your password");
-        passwordField.setStyle(FIELD);
-
-        Label error = new Label();
         error.setStyle("-fx-text-fill: #DC2626; -fx-font-size: 12px;");
         error.setWrapText(true);
-        error.setVisible(false);
-        error.setManaged(false);
-
-        Label info = new Label();
-        info.setStyle("-fx-text-fill: #16A34A; -fx-font-size: 12px; -fx-font-weight: bold;");
-        info.setWrapText(true);
-        if (infoMessage != null && !infoMessage.isBlank()) {
-            info.setText(infoMessage);
-        } else {
-            info.setVisible(false);
-            info.setManaged(false);
-        }
+        hideError();
 
         Button loginButton = new Button("Log In");
         loginButton.setMaxWidth(Double.MAX_VALUE);
-        loginButton.setStyle("-fx-background-color: " + ORANGE + "; -fx-text-fill: white;"
-                + " -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10;");
-        loginButton.setOnAction(e -> attemptLogin(identifierField, passwordField, error));
-        passwordField.setOnAction(e -> attemptLogin(identifierField, passwordField, error));
+        loginButton.setStyle(PRIMARY_BUTTON);
+        loginButton.setOnAction(e -> attemptLogin());
+        passwordField.setOnAction(e -> attemptLogin());
 
         Button toRegister = new Button("Don't have an account? Register");
-        toRegister.setStyle("-fx-background-color: transparent; -fx-text-fill: " + ORANGE + ";"
-                + " -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;");
+        toRegister.setStyle(LINK_BUTTON);
         toRegister.setOnAction(e -> onNavigateToRegister.run());
 
         VBox card = new VBox(14,
                 heading("Welcome back"),
                 sub("Log in to continue tracking your progress."),
-                info,
+                buildInfoLabel(),
                 labeled("Username or email", identifierField),
                 labeled("Password", passwordField),
                 error,
@@ -146,30 +128,52 @@ public class Login {
         return wrap;
     }
 
-    private void attemptLogin(TextField identifierField, PasswordField passwordField, Label error) {
+    private Label buildInfoLabel() {
+        Label info = new Label();
+        info.setStyle("-fx-text-fill: #16A34A; -fx-font-size: 12px; -fx-font-weight: bold;");
+        info.setWrapText(true);
+        if (infoMessage != null && !infoMessage.isBlank()) {
+            info.setText(infoMessage);
+        } else {
+            info.setVisible(false);
+            info.setManaged(false);
+        }
+        return info;
+    }
+
+    private void attemptLogin() {
         String identifier = identifierField.getText().trim();
         String password = passwordField.getText();
 
         if (identifier.isEmpty() || password.isEmpty()) {
-            showError(error, "Please enter your username/email and password.");
+            showError("Please enter your username/email and password.");
             return;
         }
 
         User user = userDAO.authenticate(identifier, password);
         if (user == null) {
-            showError(error, "Incorrect username, email or password.");
+            showError("Incorrect username, email or password.");
             return;
         }
 
-        error.setVisible(false);
-        error.setManaged(false);
+        hideError();
         onLoginSuccess.accept(user);
     }
 
-    private void showError(Label error, String message) {
+    private void configureField(TextField field, String prompt) {
+        field.setPromptText(prompt);
+        field.setStyle(FIELD);
+    }
+
+    private void showError(String message) {
         error.setText(message);
         error.setVisible(true);
         error.setManaged(true);
+    }
+
+    private void hideError() {
+        error.setVisible(false);
+        error.setManaged(false);
     }
 
     private VBox labeled(String labelText, Control field) {

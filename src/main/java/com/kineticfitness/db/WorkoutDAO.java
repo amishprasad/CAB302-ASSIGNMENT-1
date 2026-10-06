@@ -24,12 +24,17 @@ public class WorkoutDAO {
     public void save(User user, Workout workout) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = """
-            INSERT INTO workouts (user_id, workout_date)
-            VALUES ((SELECT id FROM users WHERE username = ?), ?)
+            INSERT INTO workouts (user_id, workout_date, name)
+            VALUES ((SELECT id FROM users WHERE username = ?), ?, ?)
         """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, user.getUsername());
             statement.setString(2, workout.getDate().toString());
+            if (workout.getName() != null) {
+                statement.setString(3, workout.getName());
+            } else {
+                statement.setNull(3, java.sql.Types.VARCHAR);
+            }
             statement.executeUpdate();
 
             int workoutId = lastInsertRowId(connection);
@@ -73,7 +78,7 @@ public class WorkoutDAO {
         List<Workout> workouts = new ArrayList<>();
         Connection connection = DatabaseConnection.getInstance();
         String sql = """
-            SELECT w.id, w.workout_date
+            SELECT w.id, w.workout_date, w.name
             FROM workouts w
             JOIN users u ON u.id = w.user_id
             WHERE u.username = ?
@@ -85,6 +90,8 @@ public class WorkoutDAO {
                 while (rs.next()) {
                     int workoutId = rs.getInt("id");
                     Workout workout = new Workout(LocalDate.parse(rs.getString("workout_date")));
+                    workout.setId(workoutId);
+                    workout.setName(rs.getString("name"));
                     for (Exercise exercise : findExercises(connection, workoutId)) {
                         workout.addExercise(exercise);
                     }
@@ -117,6 +124,35 @@ public class WorkoutDAO {
             }
         }
         return exercises;
+    }
+
+    public void updateExercise(int exerciseId, int sets, int reps) {
+        Connection connection = DatabaseConnection.getInstance();
+        String sql = "UPDATE exercises SET sets = ?, reps = ? WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, sets);
+            statement.setInt(2, reps);
+            statement.setInt(3, exerciseId);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to update exercise: " + e.getMessage());
+        }
+    }
+
+    public void updateWorkoutName(int workoutId, String name) {
+        Connection connection = DatabaseConnection.getInstance();
+        String sql = "UPDATE workouts SET name = ? WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            if (name != null) {
+                statement.setString(1, name);
+            } else {
+                statement.setNull(1, java.sql.Types.VARCHAR);
+            }
+            statement.setInt(2, workoutId);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to rename workout: " + e.getMessage());
+        }
     }
 
     public void deleteExercise(int exerciseId) {
@@ -153,6 +189,24 @@ public class WorkoutDAO {
             statement.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Failed to delete workouts: " + e.getMessage());
+        }
+    }
+
+    /** Adds the name column to a workouts table created before sessions could be named. */
+    public static void migrate(Connection connection) throws SQLException {
+        boolean hasName = false;
+        try (Statement statement = connection.createStatement();
+             ResultSet rs = statement.executeQuery("PRAGMA table_info(workouts)")) {
+            while (rs.next()) {
+                if ("name".equalsIgnoreCase(rs.getString("name"))) {
+                    hasName = true;
+                }
+            }
+        }
+        if (!hasName) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("ALTER TABLE workouts ADD COLUMN name TEXT");
+            }
         }
     }
 }

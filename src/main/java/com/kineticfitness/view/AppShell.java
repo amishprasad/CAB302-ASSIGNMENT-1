@@ -139,6 +139,10 @@ public class AppShell {
 
     private void refreshReminders() {
         try {
+            if (!LocalProfileStore.getInstance().notifyWorkoutReminders) {
+                reminderBanner.show(List.of(), LocalDateTime.now());
+                return;
+            }
             LocalDateTime now = LocalDateTime.now();
             reminderBanner.show(ReminderService.due(reminderSource.get(), now), now);
         } catch (RuntimeException e) {
