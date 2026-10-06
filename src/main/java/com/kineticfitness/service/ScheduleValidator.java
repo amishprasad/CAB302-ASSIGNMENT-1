@@ -1,6 +1,7 @@
 package com.kineticfitness.service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -14,7 +15,7 @@ import java.util.OptionalInt;
  *
  * <p>Previously the form accepted anything non-empty, so "banana" was a valid
  * date and was persisted as one. Everything here is a pure function taking
- * {@code today} as a parameter rather than calling {@code LocalDate.now()},
+ * {@code now} as a parameter rather than calling {@code LocalDateTime.now()},
  * which is what makes the "not in the past" rule testable.</p>
  *
  * <p>US-10 &mdash; Schedule a workout.</p>
@@ -47,12 +48,12 @@ public final class ScheduleValidator {
      * @param date           the chosen date, or null if nothing was picked
      * @param timeText       the start time as typed
      * @param durationText   the duration in minutes as typed
-     * @param today          the current date, passed in so this stays testable
+     * @param now            the current date and time, passed in so this stays testable
      */
     public static ValidationResult validate(String name, LocalDate date, String timeText,
-                                            String durationText, LocalDate today) {
-        if (today == null) {
-            throw new IllegalArgumentException("today is required");
+                                            String durationText, LocalDateTime now) {
+        if (now == null) {
+            throw new IllegalArgumentException("now is required");
         }
         if (isBlank(name)) {
             return ValidationResult.error("Please enter a workout name.");
@@ -60,7 +61,7 @@ public final class ScheduleValidator {
         if (date == null) {
             return ValidationResult.error("Please choose a date.");
         }
-        if (date.isBefore(today)) {
+        if (date.isBefore(now.toLocalDate())) {
             return ValidationResult.error("You can't schedule a workout in the past.");
         }
         if (isBlank(timeText)) {
@@ -68,6 +69,9 @@ public final class ScheduleValidator {
         }
         if (parseTime(timeText).isEmpty()) {
             return ValidationResult.error("Enter a start time like 18:00 or 6:30 PM.");
+        }
+        if (LocalDateTime.of(date, parseTime(timeText).orElseThrow()).isBefore(now)) {
+            return ValidationResult.error("You can't schedule a workout in the past.");
         }
         if (isBlank(durationText)) {
             return ValidationResult.error("Please enter a duration in minutes.");
