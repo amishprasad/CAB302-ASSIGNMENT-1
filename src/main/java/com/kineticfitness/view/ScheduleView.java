@@ -242,7 +242,7 @@ public class ScheduleView implements Page {
         String durationText = textOf(durationBox);
 
         ValidationResult result = ScheduleValidator.validate(
-                name, datePicker.getValue(), timeText, durationText, LocalDate.now());
+                name, datePicker.getValue(), timeText, durationText, LocalDateTime.now());
 
         if (result.isInvalid()) {
             showError(result.message());
@@ -428,6 +428,12 @@ public class ScheduleView implements Page {
         if (chosen.isEmpty()) {
             return;
         }
+        ScheduledWorkout candidate = workout.rescheduledTo(
+                chosen.get().toLocalDate(), chosen.get().toLocalTime());
+        if (ScheduleConflictDetector.clashes(candidate, scheduleDAO.findForUser(currentUsername()))
+                && !confirmClash()) {
+            return;
+        }
         scheduleDAO.reschedule(workout.getId(), chosen.get().toLocalDate(), chosen.get().toLocalTime());
         refreshRows();
     }
@@ -467,7 +473,7 @@ public class ScheduleView implements Page {
         okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
             ValidationResult result = ScheduleValidator.validate(
                     workout.getName(), newDate.getValue(), textOf(newTime),
-                    String.valueOf(workout.getDurationMinutes()), LocalDate.now());
+                    String.valueOf(workout.getDurationMinutes()), LocalDateTime.now());
             if (result.isInvalid()) {
                 dialogError.setText(result.message());
                 event.consume();

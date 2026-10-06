@@ -6,6 +6,7 @@ import com.kineticfitness.model.Exercise;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.util.SessionNames;
 import com.kineticfitness.util.WorkoutStats;
 import com.kineticfitness.util.WorkoutStats.DatedVolume;
 import com.kineticfitness.util.WorkoutStats.Sample;
@@ -16,12 +17,15 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.chart.BarChart;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -33,8 +37,15 @@ import javafx.stage.Stage;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class WorkoutHistoryView implements Page {
@@ -121,7 +132,8 @@ public class WorkoutHistoryView implements Page {
                         bodyPartLabel(exercise.getBodyPart())));
             }
             if (!entries.isEmpty()) {
-                loaded.add(new Session(workout.getDate().format(SESSION_DATE_FORMAT), entries));
+                loaded.add(new Session(workout.getId(), workout.getName(),
+                        workout.getDate().format(SESSION_DATE_FORMAT), entries));
             }
         }
         return loaded;
@@ -244,12 +256,13 @@ public class WorkoutHistoryView implements Page {
     }
 
     private HBox buildSessionCard(Session session) {
-        Label date = new Label(session.getTitle());
+        Label date = new Label(session.getDisplayTitle());
         date.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
         int count = session.getEntries().size();
-        Label summary = new Label(count + (count == 1 ? " exercise" : " exercises")
-                + "  ·  " + session.totalReps() + " total reps");
+        String counts = count + (count == 1 ? " exercise" : " exercises")
+                + "  ·  " + session.totalReps() + " total reps";
+        Label summary = new Label(session.hasName() ? session.getDateTitle() + "  ·  " + counts : counts);
         summary.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
 
         VBox text = new VBox(4, date, summary);
@@ -272,43 +285,155 @@ public class WorkoutHistoryView implements Page {
         Stage stage = new Stage();
         stage.initOwner(owner.getScene().getWindow());
         stage.initModality(Modality.WINDOW_MODAL);
-        stage.setTitle(session.getTitle());
+        stage.setTitle(session.getDisplayTitle());
 
-        Label header = new Label(session.getTitle());
-        header.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
+        Map<Entry, String[]> original = new HashMap<>();
+        for (Entry entry : session.getEntries()) {
+            original.put(entry, new String[] { entry.getSets(), entry.getReps() });
+        }
+        String[] savedName = { session.getName() };
 
-        Label hint = new Label("Double-click sets or reps to edit. Select a row to delete it.");
+        TextField nameField = new TextField(session.getName() == null ? "" : session.getName());
+        nameField.setPromptText(session.getDateTitle());
+        nameField.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+        Label dateLabel = new Label(session.getDateTitle());
+        dateLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
+
+        Label hint = new Label("Double-click sets or reps to edit, then press Save Changes. "
+                + "Select a row to delete it.");
         hint.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
 
-        Runnable onChanged = () -> {
+        Label statusLabel = new Label();
+        statusLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #16a34a;");
+        HBox.setHgrow(statusLabel, Priority.ALWAYS);
+
+        Button saveButton = new Button("Save Changes");
+        saveButton.setPadding(new Insets(8, 20, 8, 20));
+        saveButton.setStyle("-fx-background-color: " + ORANGE + "; -fx-text-fill: white;"
+                + " -fx-font-weight: bold; -fx-font-size: 13px; -fx-background-radius: 8;"
+                + " -fx-cursor: hand;");
+        saveButton.setDisable(true);
+
+        BooleanSupplier hasChanges = () -> {
+            if (!Objects.equals(SessionNames.normalize(nameField.getText()), savedName[0])) {
+                return true;
+            }
+            for (Entry entry : session.getEntries()) {
+                if (isEdited(entry, original.get(entry))) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        Runnable updateSaveState = () -> {
+            boolean dirty = hasChanges.getAsBoolean();
+            saveButton.setDisable(!dirty);
+            if (dirty) {
+                statusLabel.setText("");
+            }
+        };
+        nameField.textProperty().addListener((obs, oldValue, newValue) -> updateSaveState.run());
+
+        Runnable onDeleted = () -> {
             refresh();
             if (session.getEntries().isEmpty()) {
                 stage.close();
+            } else {
+                updateSaveState.run();
             }
         };
 
-        TableView<Entry> table = buildTable(session.getEntries(), onChanged);
-        Button deleteButton = buildDeleteButton(table, session.getEntries(), onChanged);
+        TableView<Entry> table = buildTable(session.getEntries(), updateSaveState);
+        Button deleteButton = buildDeleteButton(table, session.getEntries(), onDeleted);
+
+        saveButton.setOnAction(e -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                    "Save your changes to this session?", ButtonType.OK, ButtonType.CANCEL);
+            confirm.initOwner(stage);
+            confirm.setTitle("Save changes");
+            confirm.setHeaderText("Confirm changes");
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isEmpty() || result.get() != ButtonType.OK) {
+                return;
+            }
+
+            for (Entry entry : session.getEntries()) {
+                if (isEdited(entry, original.get(entry))) {
+                    saveEdit(entry);
+                    original.put(entry, new String[] { entry.getSets(), entry.getReps() });
+                }
+            }
+
+            String newName = SessionNames.normalize(nameField.getText());
+            if (!Objects.equals(newName, savedName[0])) {
+                session.setName(newName);
+                if (session.getWorkoutId() != null) {
+                    new WorkoutDAO().updateWorkoutName(session.getWorkoutId(), newName);
+                }
+                savedName[0] = newName;
+                stage.setTitle(session.getDisplayTitle());
+            }
+            nameField.setText(newName == null ? "" : newName);
+
+            statusLabel.setText("Changes saved.");
+            updateSaveState.run();
+            refresh();
+        });
+
+        BooleanSupplier canClose = () -> {
+            if (!hasChanges.getAsBoolean()) {
+                return true;
+            }
+            Alert discard = new Alert(Alert.AlertType.CONFIRMATION,
+                    "You have unsaved changes. Discard them?", ButtonType.OK, ButtonType.CANCEL);
+            discard.initOwner(stage);
+            discard.setTitle("Unsaved changes");
+            discard.setHeaderText("Discard changes?");
+            Optional<ButtonType> result = discard.showAndWait();
+            if (result.isEmpty() || result.get() != ButtonType.OK) {
+                return false;
+            }
+            for (Entry entry : session.getEntries()) {
+                String[] saved = original.get(entry);
+                if (saved != null) {
+                    entry.setSets(saved[0]);
+                    entry.setReps(saved[1]);
+                }
+            }
+            refresh();
+            return true;
+        };
+        stage.setOnCloseRequest(ev -> {
+            if (!canClose.getAsBoolean()) {
+                ev.consume();
+            }
+        });
 
         Button closeButton = new Button("Close");
         closeButton.setPadding(new Insets(8, 20, 8, 20));
         closeButton.setStyle("-fx-background-color: white; -fx-text-fill: " + TITLE + ";"
                 + " -fx-border-color: #E2E8F0; -fx-border-radius: 8; -fx-background-radius: 8;"
                 + " -fx-font-size: 13px; -fx-cursor: hand;");
-        closeButton.setOnAction(e -> stage.close());
+        closeButton.setOnAction(e -> {
+            if (canClose.getAsBoolean()) {
+                stage.close();
+            }
+        });
 
-        HBox actionBar = new HBox(10, deleteButton, closeButton);
+        HBox actionBar = new HBox(10, statusLabel, deleteButton, saveButton, closeButton);
         actionBar.setAlignment(Pos.CENTER_RIGHT);
 
-        VBox root = new VBox(12, header, hint, table, actionBar);
+        VBox root = new VBox(12, nameField, dateLabel, hint, table, actionBar);
         root.setPadding(new Insets(24));
         root.setStyle("-fx-background-color: " + CONTENT_BG + ";");
 
-        stage.setScene(new Scene(root, 640, 520));
+        stage.setScene(new Scene(root, 640, 590));
         stage.show();
     }
 
-    private TableView<Entry> buildTable(List<Entry> sessionEntries, Runnable onChanged) {
+    private TableView<Entry> buildTable(List<Entry> sessionEntries, Runnable onEdited) {
         TableView<Entry> table = new TableView<>();
         table.setEditable(true);
 
@@ -324,41 +449,10 @@ public class WorkoutHistoryView implements Page {
         exCol.setPrefWidth(360);
         exCol.setEditable(false);
 
-        TableColumn<Entry, String> setsCol = new TableColumn<>("SETS");
-        setsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getSets()));
-        setsCol.setStyle("-fx-alignment: CENTER;");
-        setsCol.setPrefWidth(90);
-        setsCol.setCellFactory(TextFieldTableCell.forTableColumn());
-        setsCol.setOnEditCommit(ev -> {
-            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
-            if (!isPositiveInt(value)) {
-                table.refresh();
-                return;
-            }
-            Entry entry = ev.getRowValue();
-            entry.setSets(value);
-            saveEdit(entry);
-            table.refresh();
-            onChanged.run();
-        });
-
-        TableColumn<Entry, String> repsCol = new TableColumn<>("REPS");
-        repsCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getReps()));
-        repsCol.setStyle("-fx-alignment: CENTER;");
-        repsCol.setPrefWidth(110);
-        repsCol.setCellFactory(TextFieldTableCell.forTableColumn());
-        repsCol.setOnEditCommit(ev -> {
-            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
-            if (!isPositiveInt(value)) {
-                table.refresh();
-                return;
-            }
-            Entry entry = ev.getRowValue();
-            entry.setReps(value);
-            saveEdit(entry);
-            table.refresh();
-            onChanged.run();
-        });
+        TableColumn<Entry, String> setsCol = editableNumberColumn(
+                table, "SETS", 90, Entry::getSets, Entry::setSets, onEdited);
+        TableColumn<Entry, String> repsCol = editableNumberColumn(
+                table, "REPS", 110, Entry::getReps, Entry::setReps, onEdited);
 
         table.getColumns().addAll(dateCol, exCol, setsCol, repsCol);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -386,12 +480,44 @@ public class WorkoutHistoryView implements Page {
         return table;
     }
 
+    /**
+     * Builds a centered, editable column holding a positive whole number (sets or reps).
+     * Invalid input is rejected and the cell reverts; valid input is written back through
+     * {@code setter} and {@code onEdited} is notified so the dialog can update its Save state.
+     */
+    private TableColumn<Entry, String> editableNumberColumn(
+            TableView<Entry> table, String title, double width,
+            Function<Entry, String> getter, BiConsumer<Entry, String> setter,
+            Runnable onEdited) {
+        TableColumn<Entry, String> column = new TableColumn<>(title);
+        column.setCellValueFactory(cd -> new ReadOnlyStringWrapper(getter.apply(cd.getValue())));
+        column.setStyle("-fx-alignment: CENTER;");
+        column.setPrefWidth(width);
+        column.setCellFactory(TextFieldTableCell.forTableColumn());
+        column.setOnEditCommit(ev -> {
+            String value = ev.getNewValue() == null ? "" : ev.getNewValue().trim();
+            if (!isPositiveInt(value)) {
+                table.refresh();
+                return;
+            }
+            setter.accept(ev.getRowValue(), value);
+            table.refresh();
+            onEdited.run();
+        });
+        return column;
+    }
+
     private static boolean isPositiveInt(String text) {
         try {
             return Integer.parseInt(text) > 0;
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    private static boolean isEdited(Entry entry, String[] original) {
+        return original != null
+                && (!original[0].equals(entry.getSets()) || !original[1].equals(entry.getReps()));
     }
 
     private void saveEdit(Entry entry) {
@@ -430,15 +556,24 @@ public class WorkoutHistoryView implements Page {
     }
 
     public static class Session {
-        private final String title;
+        private final Integer workoutId;
+        private String name;
+        private final String dateTitle;
         private final List<Entry> entries;
 
-        public Session(String title, List<Entry> entries) {
-            this.title = title;
+        public Session(Integer workoutId, String name, String dateTitle, List<Entry> entries) {
+            this.workoutId = workoutId;
+            this.name = name;
+            this.dateTitle = dateTitle;
             this.entries = entries;
         }
 
-        public String getTitle() { return title; }
+        public Integer getWorkoutId() { return workoutId; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getDateTitle() { return dateTitle; }
+        public boolean hasName() { return name != null && !name.isBlank(); }
+        public String getDisplayTitle() { return hasName() ? name : dateTitle; }
         public List<Entry> getEntries() { return entries; }
 
         public int totalReps() {

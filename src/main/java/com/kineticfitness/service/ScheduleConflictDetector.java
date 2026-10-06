@@ -27,6 +27,12 @@ public final class ScheduleConflictDetector {
      */
     public static boolean clashes(ScheduledWorkout candidate, Collection<ScheduledWorkout> existing) {
         for (ScheduledWorkout other : existing) {
+            // Saved workouts keep their identity when moved. Never compare a
+            // moved session with its original row; unsaved rows all have id 0.
+            if (candidate.getId() != ScheduledWorkout.UNSAVED
+                    && candidate.getId() == other.getId()) {
+                continue;
+            }
             if (!other.isOpen()) {
                 continue;   // a completed or skipped session no longer holds its slot
             }
