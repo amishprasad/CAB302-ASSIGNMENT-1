@@ -137,6 +137,14 @@ public class AppShell {
         }
     }
 
+    /** Observer callback: update immediately after a reminder setting is saved. */
+    public void reminderSettingsChanged(int workoutId) {
+        reminderBanner.clearDismissal(workoutId);
+        if (reminderSource != null) {
+            refreshReminders();
+        }
+    }
+
     private void refreshReminders() {
         try {
             if (!LocalProfileStore.getInstance().notifyWorkoutReminders) {
