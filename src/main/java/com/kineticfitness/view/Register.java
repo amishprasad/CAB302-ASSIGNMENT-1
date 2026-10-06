@@ -17,12 +17,9 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-/**
- * Full-window registration screen shown before the {@link AppShell}. Creates a new row in
- * the {@code users} table via {@link UserDAO#register}, hashing the password before it is
- * stored and checking username/email/phone number uniqueness first.
- */
 public class Register {
+
+    private static final int MIN_PASSWORD_LENGTH = 6;
 
     private static final String NAVY = "#0F172A";
     private static final String NAV_TEXT = "#CBD5E1";
@@ -34,11 +31,22 @@ public class Register {
             + " -fx-border-color: #E2E8F0; -fx-border-radius: 8; -fx-padding: 10;";
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 12;"
             + " -fx-border-color: #E2E8F0; -fx-border-radius: 12;";
+    private static final String PRIMARY_BUTTON = "-fx-background-color: " + ORANGE + "; -fx-text-fill: white;"
+            + " -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10;";
+    private static final String LINK_BUTTON = "-fx-background-color: transparent; -fx-text-fill: " + ORANGE + ";"
+            + " -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;";
 
     private final Stage stage;
     private final Runnable onRegisterSuccess;
     private final Runnable onNavigateToLogin;
     private final UserDAO userDAO = new UserDAO();
+
+    private final TextField usernameField = new TextField();
+    private final TextField emailField = new TextField();
+    private final TextField phoneField = new TextField();
+    private final PasswordField passwordField = new PasswordField();
+    private final PasswordField confirmField = new PasswordField();
+    private final Label error = new Label();
 
     public Register(Stage stage, Runnable onRegisterSuccess, Runnable onNavigateToLogin) {
         this.stage = stage;
@@ -82,44 +90,24 @@ public class Register {
     }
 
     private StackPane buildFormPanel() {
-        TextField usernameField = new TextField();
-        usernameField.setPromptText("e.g. alexrivera");
-        usernameField.setStyle(FIELD);
+        configureField(usernameField, "e.g. alexrivera");
+        configureField(emailField, "e.g. alex@email.com");
+        configureField(phoneField, "e.g. 0400 000 000");
+        configureField(passwordField, "At least " + MIN_PASSWORD_LENGTH + " characters");
+        configureField(confirmField, "Re-enter your password");
 
-        TextField emailField = new TextField();
-        emailField.setPromptText("e.g. alex@email.com");
-        emailField.setStyle(FIELD);
-
-        TextField phoneField = new TextField();
-        phoneField.setPromptText("e.g. 0400 000 000");
-        phoneField.setStyle(FIELD);
-
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("At least 6 characters");
-        passwordField.setStyle(FIELD);
-
-        PasswordField confirmField = new PasswordField();
-        confirmField.setPromptText("Re-enter your password");
-        confirmField.setStyle(FIELD);
-
-        Label error = new Label();
         error.setStyle("-fx-text-fill: #DC2626; -fx-font-size: 12px;");
         error.setWrapText(true);
-        error.setVisible(false);
-        error.setManaged(false);
+        hideError();
 
         Button registerButton = new Button("Create Account");
         registerButton.setMaxWidth(Double.MAX_VALUE);
-        registerButton.setStyle("-fx-background-color: " + ORANGE + "; -fx-text-fill: white;"
-                + " -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10;");
-        registerButton.setOnAction(e -> attemptRegister(
-                usernameField, emailField, phoneField, passwordField, confirmField, error));
-        confirmField.setOnAction(e -> attemptRegister(
-                usernameField, emailField, phoneField, passwordField, confirmField, error));
+        registerButton.setStyle(PRIMARY_BUTTON);
+        registerButton.setOnAction(e -> attemptRegister());
+        confirmField.setOnAction(e -> attemptRegister());
 
         Button toLogin = new Button("Already have an account? Log in");
-        toLogin.setStyle("-fx-background-color: transparent; -fx-text-fill: " + ORANGE + ";"
-                + " -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;");
+        toLogin.setStyle(LINK_BUTTON);
         toLogin.setOnAction(e -> onNavigateToLogin.run());
 
         VBox card = new VBox(12,
@@ -142,58 +130,77 @@ public class Register {
         return wrap;
     }
 
-    private void attemptRegister(TextField usernameField, TextField emailField, TextField phoneField,
-                                  PasswordField passwordField, PasswordField confirmField, Label error) {
+    private void attemptRegister() {
         String username = usernameField.getText().trim();
         String email = emailField.getText().trim();
         String phone = phoneField.getText().trim();
         String password = passwordField.getText();
         String confirm = confirmField.getText();
 
-        if (username.isEmpty() || email.isEmpty() || phone.isEmpty() || password.isEmpty() || confirm.isEmpty()) {
-            showError(error, "Please fill in every field before continuing.");
-            return;
+        String problem = validateInput(username, email, phone, password, confirm);
+        if (problem == null) {
+            problem = findDuplicate(username, email, phone);
         }
-        if (!email.contains("@") || !email.contains(".")) {
-            showError(error, "Please enter a valid email address.");
-            return;
-        }
-        if (password.length() < 6) {
-            showError(error, "Password must be at least 6 characters long.");
-            return;
-        }
-        if (!password.equals(confirm)) {
-            showError(error, "Passwords do not match.");
-            return;
-        }
-        if (userDAO.usernameExists(username)) {
-            showError(error, "That username is already taken.");
-            return;
-        }
-        if (userDAO.emailExists(email)) {
-            showError(error, "An account with that email already exists.");
-            return;
-        }
-        if (userDAO.phoneExists(phone)) {
-            showError(error, "An account with that phone number already exists.");
+        if (problem != null) {
+            showError(problem);
             return;
         }
 
         User created = userDAO.register(username, password, email, phone);
         if (created == null) {
-            showError(error, "Something went wrong creating your account. Please try again.");
+            showError("Something went wrong creating your account. Please try again.");
             return;
         }
 
-        error.setVisible(false);
-        error.setManaged(false);
+        hideError();
         onRegisterSuccess.run();
     }
 
-    private void showError(Label error, String message) {
+    private String validateInput(String username, String email, String phone,
+                                 String password, String confirm) {
+        if (username.isEmpty() || email.isEmpty() || phone.isEmpty()
+                || password.isEmpty() || confirm.isEmpty()) {
+            return "Please fill in every field before continuing.";
+        }
+        if (!email.contains("@") || !email.contains(".")) {
+            return "Please enter a valid email address.";
+        }
+        if (password.length() < MIN_PASSWORD_LENGTH) {
+            return "Password must be at least " + MIN_PASSWORD_LENGTH + " characters long.";
+        }
+        if (!password.equals(confirm)) {
+            return "Passwords do not match.";
+        }
+        return null;
+    }
+
+    private String findDuplicate(String username, String email, String phone) {
+        if (userDAO.usernameExists(username)) {
+            return "That username is already taken.";
+        }
+        if (userDAO.emailExists(email)) {
+            return "An account with that email already exists.";
+        }
+        if (userDAO.phoneExists(phone)) {
+            return "An account with that phone number already exists.";
+        }
+        return null;
+    }
+
+    private void configureField(TextField field, String prompt) {
+        field.setPromptText(prompt);
+        field.setStyle(FIELD);
+    }
+
+    private void showError(String message) {
         error.setText(message);
         error.setVisible(true);
         error.setManaged(true);
+    }
+
+    private void hideError() {
+        error.setVisible(false);
+        error.setManaged(false);
     }
 
     private VBox labeled(String labelText, Control field) {
