@@ -29,11 +29,15 @@ public final class GoalValidator {
      * told about the first problem rather than the last.
      *
      * @param targetWeightText the raw text typed into the target weight field
+     * @param weeklyMinutes    the chosen weekly exercise duration, or null if unchosen
+     * @param weeklyWorkouts   the chosen number of workouts per week, or null if unchosen
      * @param startDate        the goal's existing start date, or today for a new goal
      * @return {@link ValidationResult#ok()} when every rule passes
      */
     public static ValidationResult validate(GoalType type,
                                             String targetWeightText,
+                                            Integer weeklyMinutes,
+                                            Integer weeklyWorkouts,
                                             LocalDate targetDate,
                                             FitnessLevel experienceLevel,
                                             boolean anyWorkoutTypeSelected,
@@ -58,8 +62,24 @@ public final class GoalValidator {
                     "Target weight must be " + (int) MAX_TARGET_WEIGHT_KG + " kg or less.");
         }
 
+        // Null means the user never opened the dropdown. The form pre-selects
+        // nothing, so an unanswered question has to be caught here rather than
+        // sailing through as somebody else's default.
+        if (weeklyMinutes == null) {
+            return ValidationResult.error("Choose how long you want to exercise each week.");
+        }
+        if (weeklyMinutes <= 0) {
+            return ValidationResult.error("Weekly exercise duration must be more than zero.");
+        }
+        if (weeklyWorkouts == null) {
+            return ValidationResult.error("Choose how many workouts you want to do each week.");
+        }
+        if (weeklyWorkouts <= 0) {
+            return ValidationResult.error("Weekly workout goal must be more than zero.");
+        }
+
         if (targetDate == null) {
-            return ValidationResult.error("Pick a target date for this goal.");
+            return ValidationResult.error("Choose a target date for this goal.");
         }
         if (!targetDate.isAfter(startDate)) {
             return ValidationResult.error("Target date must be after " + startDate + ".");
