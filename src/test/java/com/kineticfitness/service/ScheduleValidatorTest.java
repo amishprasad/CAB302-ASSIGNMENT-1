@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The rules and parsing behind the "Schedule New Workout" form.
  *
- * <p>{@code today} is passed in rather than read from the clock, so the
+ * <p>{@code now} is passed in rather than read from the clock, so the
  * "not in the past" rule is tested at a fixed date and cannot start failing
  * tomorrow.</p>
  *
@@ -25,6 +26,30 @@ class ScheduleValidatorTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 9, 16);
     private static final LocalDate TOMORROW = TODAY.plusDays(1);
+    private static final LocalDateTime NOW = TODAY.atTime(12, 0);
+
+    @Test
+    void rejectsAnEarlierTimeToday() {
+        assertEquals("You can't schedule a workout in the past.",
+                ScheduleValidator.validate("Leg Day", TODAY, "11:59", "45", NOW).message());
+    }
+
+    @Test
+    void acceptsTheCurrentInstantAndAFutureTimeToday() {
+        assertTrue(ScheduleValidator.validate("Leg Day", TODAY, "12:00", "45", NOW).valid());
+        assertTrue(ScheduleValidator.validate("Leg Day", TODAY, "12:01", "45", NOW).valid());
+    }
+
+    @Test
+    void rejectsAStartEarlierInTheCurrentMinute() {
+        assertFalse(ScheduleValidator.validate("Leg Day", TODAY, "12:00", "45",
+                NOW.plusSeconds(30)).valid());
+    }
+
+    @Test
+    void acceptsAnEarlierClockTimeOnAFutureDate() {
+        assertTrue(ScheduleValidator.validate("Leg Day", TOMORROW, "06:00", "45", NOW).valid());
+    }
 
     @Nested
     @DisplayName("Form rules")
@@ -33,7 +58,7 @@ class ScheduleValidatorTest {
         @Test
         void acceptsACompleteForm() {
             ValidationResult result =
-                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "45", TODAY);
+                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "45", NOW);
             assertTrue(result.valid());
             assertEquals("", result.message());
         }
@@ -41,71 +66,71 @@ class ScheduleValidatorTest {
         @Test
         @DisplayName("today itself is allowed - you can plan this evening's session")
         void todayIsNotInThePast() {
-            assertTrue(ScheduleValidator.validate("Leg Day", TODAY, "18:00", "45", TODAY).valid());
+            assertTrue(ScheduleValidator.validate("Leg Day", TODAY, "18:00", "45", NOW).valid());
         }
 
         @Test
         void rejectsAMissingName() {
             assertEquals("Please enter a workout name.",
-                    ScheduleValidator.validate("   ", TOMORROW, "18:00", "45", TODAY).message());
+                    ScheduleValidator.validate("   ", TOMORROW, "18:00", "45", NOW).message());
         }
 
         @Test
         void rejectsAMissingDate() {
             assertEquals("Please choose a date.",
-                    ScheduleValidator.validate("Leg Day", null, "18:00", "45", TODAY).message());
+                    ScheduleValidator.validate("Leg Day", null, "18:00", "45", NOW).message());
         }
 
         @Test
         void rejectsADateInThePast() {
             assertEquals("You can't schedule a workout in the past.",
-                    ScheduleValidator.validate("Leg Day", TODAY.minusDays(1), "18:00", "45", TODAY).message());
+                    ScheduleValidator.validate("Leg Day", TODAY.minusDays(1), "18:00", "45", NOW).message());
         }
 
         @Test
         @DisplayName("the old form accepted 'banana' as a date - this is what stops that")
         void rejectsATimeItCannotUnderstand() {
             assertEquals("Enter a start time like 18:00 or 6:30 PM.",
-                    ScheduleValidator.validate("Leg Day", TOMORROW, "banana", "45", TODAY).message());
+                    ScheduleValidator.validate("Leg Day", TOMORROW, "banana", "45", NOW).message());
         }
 
         @Test
         void rejectsAMissingTime() {
             assertEquals("Please enter a start time.",
-                    ScheduleValidator.validate("Leg Day", TOMORROW, "", "45", TODAY).message());
+                    ScheduleValidator.validate("Leg Day", TOMORROW, "", "45", NOW).message());
         }
 
         @Test
         void rejectsANonNumericDuration() {
             assertEquals("Duration must be a whole number of minutes.",
-                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "a while", TODAY).message());
+                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "a while", NOW).message());
         }
 
         @Test
         void rejectsAZeroOrNegativeDuration() {
             assertEquals("Duration must be at least 1 minute.",
-                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "0", TODAY).message());
+                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "0", NOW).message());
             assertEquals("Duration must be at least 1 minute.",
-                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "-30", TODAY).message());
+                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "-30", NOW).message());
         }
 
         @Test
         void rejectsAnImplausiblyLongSession() {
             assertEquals("Duration must be 600 minutes or less.",
-                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "601", TODAY).message());
-            assertTrue(ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "600", TODAY).valid());
+                    ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "601", NOW).message());
+            assertTrue(ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "600", NOW).valid());
         }
 
         @Test
         @DisplayName("the user is told about the first problem, not the last")
         void reportsProblemsInFieldOrder() {
             ValidationResult result =
-                    ScheduleValidator.validate("", null, "banana", "nonsense", TODAY);
+                    ScheduleValidator.validate("", null, "banana", "nonsense", NOW);
             assertEquals("Please enter a workout name.", result.message());
         }
 
         @Test
-        void requiresACurrentDateToCompareAgainst() {
+        void requiresACurrentDateAndTimeToCompareAgainst() {
             assertThrows(IllegalArgumentException.class,
                     () -> ScheduleValidator.validate("Leg Day", TOMORROW, "18:00", "45", null));
         }

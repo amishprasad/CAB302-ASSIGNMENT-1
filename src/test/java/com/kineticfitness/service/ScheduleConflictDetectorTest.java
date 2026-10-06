@@ -22,6 +22,26 @@ class ScheduleConflictDetectorTest {
     private static final LocalDate DATE = LocalDate.of(2026, 9, 21);
 
     @Test
+    void movingAWorkoutDoesNotClashWithItsOwnOriginalSlot() {
+        ScheduledWorkout original = new ScheduledWorkout(
+                "Cardio", DATE, LocalTime.of(18, 0), 60, ScheduledWorkout.NO_REMINDER).withId(1);
+        ScheduledWorkout moved = original.rescheduledTo(DATE, LocalTime.of(18, 30));
+
+        assertFalse(ScheduleConflictDetector.clashes(moved, List.of(original)));
+    }
+
+    @Test
+    void movingAWorkoutStillClashesWithAnotherSavedWorkout() {
+        ScheduledWorkout original = new ScheduledWorkout(
+                "Cardio", DATE, LocalTime.of(18, 0), 60, ScheduledWorkout.NO_REMINDER).withId(1);
+        ScheduledWorkout other = new ScheduledWorkout(
+                "Leg Day", DATE, LocalTime.of(19, 0), 45, ScheduledWorkout.NO_REMINDER).withId(2);
+        ScheduledWorkout moved = original.rescheduledTo(DATE, LocalTime.of(18, 30));
+
+        assertTrue(ScheduleConflictDetector.clashes(moved, List.of(original, other)));
+    }
+
+    @Test
     void aWorkoutOverlappingAnExistingOneClashes() {
         // Cardio runs 18:00-19:00.
         ScheduledWorkout booked = new ScheduledWorkout(
