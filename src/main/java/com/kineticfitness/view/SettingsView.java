@@ -1,21 +1,23 @@
 package com.kineticfitness.view;
 
-import com.kineticfitness.db.WorkoutDAO;
+
+import com.kineticfitness.db.PreferencesDAO;
+import com.kineticfitness.db.ProfileDAO;
 import com.kineticfitness.db.UserDAO;
+import com.kineticfitness.db.WorkoutDAO;
+import com.kineticfitness.db.ScheduleDAO;
 import com.kineticfitness.model.User;
-import com.kineticfitness.model.Workout;
+import com.kineticfitness.service.ExportService;
+import com.kineticfitness.service.PasswordChangeValidator;
+import com.kineticfitness.service.ValidationResult;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.util.PasswordUtil;
+import com.kineticfitness.util.UnitSystem;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -24,13 +26,9 @@ import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.time.LocalDate;
 import java.util.Optional;
 
 /**
@@ -51,17 +49,19 @@ public class SettingsView implements Page {
 
     private final UserDAO userDAO = new UserDAO();
     private final WorkoutDAO workoutDAO = new WorkoutDAO();
+    private final PreferencesDAO preferencesDAO = new PreferencesDAO();
+    private final ScheduleDAO scheduleDAO = new ScheduleDAO();
+    private final ProfileDAO profileDAO = new ProfileDAO();
 
-    private String selectedUnit = "Metric";
+    private UnitSystem selectedUnit = UnitSystem.METRIC;
     private final HBox unitToggle = new HBox(4);
 
     private final CheckBox workoutReminders = new CheckBox("Workout reminders");
-    private final CheckBox goalAlerts = new CheckBox("Goal progress alerts");
-    private final CheckBox weeklySummary = new CheckBox("Weekly summary email");
 
     private final TextField usernameField = new TextField();
     private final PasswordField newPasswordField = new PasswordField();
     private final PasswordField confirmPasswordField = new PasswordField();
+    private final PasswordField currentPasswordField = new PasswordField();
 
     private final Label statusLabel = new Label();
 
@@ -87,15 +87,23 @@ public class SettingsView implements Page {
         usernameField.setEditable(false);
         usernameField.setStyle("-fx-opacity: 0.75;");
 
+        if (currentUser != null) {
+            preferencesDAO.load(LocalProfileStore.getInstance(), currentUser.getUsername());
+        }
+        selectedUnit = LocalProfileStore.getInstance().unitSystem;
+
         VBox content = new VBox(16, title, subtitle,
                 buildUnitsCard(), buildNotificationsCard(), buildAccountCard(), buildSaveRow());
         content.setPadding(new Insets(32, 40, 32, 40));
         content.setStyle("-fx-background-color: " + CONTENT_BG + ";");
         content.setMaxWidth(640);
-        return content;
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: " + CONTENT_BG + "; -fx-background: " + CONTENT_BG + ";");
+        return scroll;
     }
 
-    // ---- Units & Measurement (session-only — no preferences table exists yet) ----
+    // ---- Units & Measurement ----
 
     private VBox buildUnitsCard() {
         Label header = new Label("Units & Measurement");
@@ -105,7 +113,7 @@ public class SettingsView implements Page {
         helper.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
 
         unitToggle.setStyle("-fx-background-color: #E2E8F0; -fx-background-radius: 8; -fx-padding: 4;");
-        unitToggle.getChildren().setAll(unitOption("Metric"), unitOption("Imperial"));
+        unitToggle.getChildren().setAll(unitOption(UnitSystem.METRIC), unitOption(UnitSystem.IMPERIAL));
 
         VBox card = new VBox(10, header, helper, unitToggle);
         card.setPadding(new Insets(20));
@@ -113,22 +121,22 @@ public class SettingsView implements Page {
         return card;
     }
 
-    private Label unitOption(String unitName) {
-        Label option = new Label(unitName);
+    private Label unitOption(UnitSystem system) {
+        Label option = new Label(system.displayName());
         option.setMaxWidth(Double.MAX_VALUE);
         option.setAlignment(Pos.CENTER);
         HBox.setHgrow(option, Priority.ALWAYS);
         option.setPadding(new Insets(8, 0, 8, 0));
-        applyUnitStyle(option, unitName.equals(selectedUnit));
-        option.setOnMouseClicked(e -> selectUnit(unitName));
+        applyUnitStyle(option, system == selectedUnit);
+        option.setOnMouseClicked(e -> selectUnit(system));
         return option;
     }
 
-    private void selectUnit(String unitName) {
-        selectedUnit = unitName;
+    private void selectUnit(UnitSystem system) {
+        selectedUnit = system;
         for (Node node : unitToggle.getChildren()) {
             Label option = (Label) node;
-            applyUnitStyle(option, option.getText().equals(unitName));
+            applyUnitStyle(option, option.getText().equals(system.displayName()));
         }
     }
 
@@ -146,14 +154,10 @@ public class SettingsView implements Page {
         Label header = new Label("Notifications");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
-        workoutReminders.setSelected(true);
-        goalAlerts.setSelected(true);
-        weeklySummary.setSelected(false);
-        for (CheckBox box : new CheckBox[]{workoutReminders, goalAlerts, weeklySummary}) {
-            box.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TITLE + ";");
-        }
+        workoutReminders.setSelected(LocalProfileStore.getInstance().notifyWorkoutReminders);
+        workoutReminders.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TITLE + ";");
 
-        VBox card = new VBox(10, header, workoutReminders, goalAlerts, weeklySummary);
+        VBox card = new VBox(10, header, workoutReminders);
         card.setPadding(new Insets(20));
         card.setStyle(CARD);
         return card;
@@ -169,17 +173,21 @@ public class SettingsView implements Page {
         grid.setHgap(14);
         grid.setVgap(10);
 
-        grid.add(fieldLabel("Username"), 0, 0);
-        grid.add(fieldLabel("New Password"), 1, 0);
-        grid.add(fieldLabel("Confirm Password"), 2, 0);
         usernameField.setPrefWidth(160);
+        currentPasswordField.setPrefWidth(160);
         newPasswordField.setPrefWidth(160);
         confirmPasswordField.setPrefWidth(160);
-        grid.add(usernameField, 0, 1);
-        grid.add(newPasswordField, 1, 1);
-        grid.add(confirmPasswordField, 2, 1);
 
-        Button exportButton = new Button("Export My Data");
+        grid.add(fieldLabel("Username"), 0, 0);
+        grid.add(fieldLabel("Current Password"), 1, 0);
+        grid.add(usernameField, 0, 1);
+        grid.add(currentPasswordField, 1, 1);
+        grid.add(fieldLabel("New Password"), 0, 2);
+        grid.add(fieldLabel("Confirm Password"), 1, 2);
+        grid.add(newPasswordField, 0, 3);
+        grid.add(confirmPasswordField, 1, 3);
+
+        Button exportButton = new Button("Export Workouts (CSV)");
         exportButton.setStyle("-fx-background-color: white; -fx-text-fill: " + TITLE + ";"
                 + " -fx-border-color: " + BORDER + "; -fx-border-radius: 8; -fx-background-radius: 8;");
         exportButton.setOnAction(e -> handleExport(exportButton));
@@ -209,7 +217,11 @@ public class SettingsView implements Page {
         return row;
     }
 
-    /** Saves a password change when one was entered. Units/notifications stay session-only for now. */
+    /**
+     * Always persists units and notification choices. A password change only happens
+     * when the password fields were actually filled in — leaving them blank just saves
+     * the rest of the page, the same as before.
+     */
     private void handleSave() {
         User currentUser = UserSession.getCurrentUser();
         if (currentUser == null) {
@@ -217,29 +229,42 @@ public class SettingsView implements Page {
             return;
         }
 
+        String currentPassword = currentPasswordField.getText();
         String newPassword = newPasswordField.getText();
         String confirmPassword = confirmPasswordField.getText();
+        boolean changingPassword = !currentPassword.isEmpty()
+                || !newPassword.isEmpty() || !confirmPassword.isEmpty();
 
-        if (newPassword.isEmpty() && confirmPassword.isEmpty()) {
+        if (changingPassword) {
+            ValidationResult check = PasswordChangeValidator.validate(
+                    currentUser.getPasswordHash(), currentPassword, newPassword, confirmPassword);
+            if (check.isInvalid()) {
+                showStatus(check.message(), true);
+                return;
+            }
+        }
+
+        LocalProfileStore store = LocalProfileStore.getInstance();
+        store.unitSystem = selectedUnit;
+        store.notifyWorkoutReminders = workoutReminders.isSelected();
+        preferencesDAO.save(store, currentUser.getUsername());
+
+        if (!changingPassword) {
             showStatus("Settings saved.", false);
-            return;
-        }
-        if (newPassword.length() < 6) {
-            showStatus("New password must be at least 6 characters.", true);
-            return;
-        }
-        if (!newPassword.equals(confirmPassword)) {
-            showStatus("Passwords don't match.", true);
             return;
         }
 
         String hashed = PasswordUtil.hash(newPassword);
-        userDAO.updatePassword(currentUser.getUsername(), hashed);
+        if (!userDAO.updatePassword(currentUser.getUsername(), hashed)) {
+            showStatus("Couldn't update your password. Please try again.", true);
+            return;
+        }
         currentUser.setPasswordHash(hashed);
 
         newPasswordField.clear();
         confirmPasswordField.clear();
-        showStatus("Password updated.", false);
+        currentPasswordField.clear();
+        showStatus("Settings and password updated.", false);
     }
 
     private void handleExport(Node anchor) {
@@ -250,9 +275,9 @@ public class SettingsView implements Page {
         }
 
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Export My Data");
-        chooser.setInitialFileName("kinetic-fitness-export-" + currentUser.getUsername() + ".txt");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text file", "*.txt"));
+        chooser.setTitle("Export My Workouts");
+        chooser.setInitialFileName(ExportService.fileName(currentUser.getUsername(), LocalDate.now()));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV file", "*.csv"));
 
         Window window = anchor.getScene() != null ? anchor.getScene().getWindow() : null;
         java.io.File file = chooser.showSaveDialog(window);
@@ -260,42 +285,12 @@ public class SettingsView implements Page {
             return;
         }
 
-        try (Writer writer = Files.newBufferedWriter(Path.of(file.getPath()), StandardCharsets.UTF_8)) {
-            writeExport(writer, currentUser);
-            showStatus("Data exported to " + file.getName() + ".", false);
+        String csv = ExportService.workoutsToCsv(workoutDAO.findAllByUsername(currentUser.getUsername()));
+        try {
+            Files.writeString(file.toPath(), csv, StandardCharsets.UTF_8);
+            showStatus("Workouts exported to " + file.getName() + ".", false);
         } catch (IOException ex) {
             showStatus("Export failed: " + ex.getMessage(), true);
-        }
-    }
-
-    private void writeExport(Writer writer, User user) throws IOException {
-        DateTimeFormatter timestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        LocalProfileStore profile = LocalProfileStore.getInstance();
-
-        writer.write("Kinetic Fitness — Data Export\n");
-        writer.write("Generated: " + LocalDateTime.now().format(timestamp) + "\n");
-        writer.write("=".repeat(40) + "\n\n");
-
-        writer.write("Account\n");
-        writer.write("  Username: " + user.getUsername() + "\n");
-        writer.write("  Email: " + (user.getEmail() != null ? user.getEmail() : "—") + "\n\n");
-
-        writer.write("Profile\n");
-        writer.write("  Name: " + (profile.firstName.isEmpty() ? "—" : profile.firstName) + "\n");
-        writer.write("  Height: " + (profile.heightCm > 0 ? profile.heightCm + " cm" : "—") + "\n");
-        writer.write("  Weight: " + (profile.weightKg > 0 ? profile.weightKg + " kg" : "—") + "\n\n");
-
-        List<Workout> workouts = workoutDAO.findAllByUsername(user.getUsername());
-        writer.write("Workouts (" + workouts.size() + ")\n");
-        for (Workout w : workouts) {
-            writer.write("  " + w.getDate() + " — " + w.getExercises().size() + " exercise(s)\n");
-        }
-        writer.write("\n");
-
-        writer.write("Goals (" + profile.milestones.size() + ")\n");
-        for (LocalProfileStore.Milestone m : profile.milestones) {
-            writer.write("  " + m.description + ": " + m.currentValue + " / " + m.targetValue
-                    + " " + m.unit + " (" + m.progressPercent() + "%)\n");
         }
     }
 
@@ -307,7 +302,8 @@ public class SettingsView implements Page {
         }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                "This permanently deletes all your logged workouts and goals. This can't be undone.",
+                "This permanently deletes your logged workouts, scheduled workouts and goals. "
+                        + "Your account and profile details are kept. This can't be undone.",
                 ButtonType.CANCEL, ButtonType.OK);
         confirm.setHeaderText("Clear all your data?");
         Optional<ButtonType> result = confirm.showAndWait();
@@ -315,9 +311,20 @@ public class SettingsView implements Page {
             return;
         }
 
-        workoutDAO.deleteAllForUser(currentUser.getUsername());
-        LocalProfileStore.getInstance().milestones.clear();
-        showStatus("Your workouts and goals have been cleared.", false);
+        String username = currentUser.getUsername();
+        workoutDAO.deleteAllForUser(username);
+        scheduleDAO.deleteAllForUser(username);
+
+        LocalProfileStore store = LocalProfileStore.getInstance();
+        store.milestones.clear();
+        store.primaryGoal = null;
+        store.targetWeightKg = 0;
+        store.goalStartDate = null;
+        store.goalTargetDate = null;
+        store.goalAchievedDate = null;
+        profileDAO.save(store, username);
+
+        showStatus("Your workouts, schedule and goals have been cleared.", false);
     }
 
     private Label fieldLabel(String text) {

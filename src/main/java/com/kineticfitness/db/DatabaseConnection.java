@@ -97,6 +97,16 @@ public class DatabaseConnection {
                 )
             """);
             statement.execute("""
+                CREATE TABLE IF NOT EXISTS preferences (
+                    id INTEGER PRIMARY KEY,
+                    unit_system TEXT NOT NULL DEFAULT 'METRIC',
+                    notify_workout_reminders INTEGER NOT NULL DEFAULT 1,
+                    notify_goal_alerts INTEGER NOT NULL DEFAULT 1,
+                    notify_weekly_summary INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (id) REFERENCES users(id)
+                )
+            """);
+            statement.execute("""
                 CREATE TABLE IF NOT EXISTS profiles (
                     id INTEGER PRIMARY KEY,
                     first_name TEXT, email TEXT, gender TEXT, photo_path TEXT,

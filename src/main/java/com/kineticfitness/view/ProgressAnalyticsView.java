@@ -4,6 +4,10 @@ import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.util.WorkoutStats;
+import com.kineticfitness.util.BmiCalculator;
+import com.kineticfitness.util.UnitConverter;
+import com.kineticfitness.util.UnitSystem;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.chart.BarChart;
@@ -17,14 +21,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.time.DayOfWeek;
+import java.time.temporal.ChronoUnit;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 
 /**
  * Progress & Analytics page: summarises real training volume, current body metrics, and
@@ -43,7 +46,6 @@ public class ProgressAnalyticsView implements Page {
     private static final String BORDER = "#E2E8F0";
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 10;"
             + " -fx-border-color: " + BORDER + "; -fx-border-radius: 10;";
-    private static final int WEEKS_SHOWN = 8;
 
     private final WorkoutDAO workoutDAO = new WorkoutDAO();
 
@@ -95,7 +97,8 @@ public class ProgressAnalyticsView implements Page {
         int totalReps = workouts.stream().mapToInt(Workout::totalReps).sum();
         List<LocalProfileStore.Milestone> milestones = LocalProfileStore.getInstance().milestones;
         long goalsAchieved = milestones.stream().filter(LocalProfileStore.Milestone::isAchieved).count();
-        int streak = currentStreak(workouts);
+        List<LocalDate> dates = workouts.stream().map(Workout::getDate).toList();
+        int streak = WorkoutStats.currentStreak(dates, LocalDate.now());
 
         HBox row = new HBox(16,
                 statCard("Total Workouts", String.valueOf(totalWorkouts)),
@@ -106,31 +109,6 @@ public class ProgressAnalyticsView implements Page {
             HBox.setHgrow(node, Priority.ALWAYS);
         }
         return row;
-    }
-
-    /** Consecutive days with at least one workout, counting back from the most recent workout day. */
-    private int currentStreak(List<Workout> workouts) {
-        Set<LocalDate> days = new TreeSet<>();
-        for (Workout w : workouts) {
-            days.add(w.getDate());
-        }
-        if (days.isEmpty()) {
-            return 0;
-        }
-        List<LocalDate> descending = new ArrayList<>(days);
-        java.util.Collections.reverse(descending);
-
-        int streak = 1;
-        LocalDate cursor = descending.get(0);
-        for (int i = 1; i < descending.size(); i++) {
-            if (descending.get(i).equals(cursor.minusDays(1))) {
-                streak++;
-                cursor = descending.get(i);
-            } else {
-                break;
-            }
-        }
-        return streak;
     }
 
     private VBox statCard(String label, String value) {
@@ -149,6 +127,21 @@ public class ProgressAnalyticsView implements Page {
 
     // ---- Weekly volume chart -------------------------------------------
 
+    private enum TimeRange {
+        FOUR_WEEKS("4 Weeks", 4),
+        EIGHT_WEEKS("8 Weeks", 8),
+        TWELVE_WEEKS("12 Weeks", 12),
+        ALL("All", 0);
+
+        final String label;
+        final int weeks; // 0 means "from the first workout"
+
+        TimeRange(String label, int weeks) {
+            this.label = label;
+            this.weeks = weeks;
+        }
+    }
+
     private VBox buildVolumeChartCard(List<Workout> workouts) {
         Label header = new Label("Weekly Training Volume");
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
@@ -165,39 +158,88 @@ public class ProgressAnalyticsView implements Page {
         chart.setPrefHeight(240);
         chart.setAnimated(false);
 
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (WeekBucket bucket : weeklyBuckets(workouts)) {
-            series.getData().add(new XYChart.Data<>(bucket.label, bucket.totalReps));
-        }
-        chart.getData().add(series);
+        Label summary = new Label();
+        summary.setWrapText(true);
+        summary.setStyle("-fx-font-size: 12px; -fx-text-fill: " + TITLE + ";");
 
-        VBox card = new VBox(10, header, helper, chart);
+        ToggleGroup group = new ToggleGroup();
+        HBox rangeRow = new HBox(8);
+        for (TimeRange range : TimeRange.values()) {
+            ToggleButton button = new ToggleButton(range.label);
+            button.setToggleGroup(group);
+            button.setUserData(range);
+            button.setSelected(range == TimeRange.EIGHT_WEEKS);
+            rangeRow.getChildren().add(button);
+        }
+        group.selectedToggleProperty().addListener((obs, previous, current) -> {
+            if (current == null) {            // never allow "nothing selected"
+                previous.setSelected(true);
+                return;
+            }
+            refreshChart(chart, summary, workouts, (TimeRange) current.getUserData());
+        });
+
+        refreshChart(chart, summary, workouts, TimeRange.EIGHT_WEEKS);
+
+        VBox card = new VBox(10, header, helper, rangeRow, chart, summary);
         card.setPadding(new Insets(20));
         card.setStyle(CARD);
         return card;
     }
 
-    private record WeekBucket(String label, int totalReps) {}
-
-    /** Buckets real workout reps into the last {@value WEEKS_SHOWN} calendar weeks (Mon–Sun), oldest first. */
-    private List<WeekBucket> weeklyBuckets(List<Workout> workouts) {
+    private void refreshChart(BarChart<String, Number> chart, Label summary,
+                              List<Workout> workouts, TimeRange range) {
         DateTimeFormatter labelFormat = DateTimeFormatter.ofPattern("MMM d");
-        LocalDate thisWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        List<WorkoutStats.DayVolume> days = workouts.stream()
+                .filter(w -> w.getDate() != null)
+                .map(w -> new WorkoutStats.DayVolume(w.getDate(), w.totalReps()))
+                .toList();
 
-        List<WeekBucket> buckets = new ArrayList<>();
-        for (int i = WEEKS_SHOWN - 1; i >= 0; i--) {
-            LocalDate weekStart = thisWeekStart.minusWeeks(i);
-            LocalDate weekEnd = weekStart.plusDays(6);
-            int reps = 0;
-            for (Workout w : workouts) {
-                LocalDate d = w.getDate();
-                if (!d.isBefore(weekStart) && !d.isAfter(weekEnd)) {
-                    reps += w.totalReps();
-                }
-            }
-            buckets.add(new WeekBucket(weekStart.format(labelFormat), reps));
+        List<WorkoutStats.WeekBucket> buckets =
+                WorkoutStats.weeklyBuckets(days, LocalDate.now(), weeksFor(range, workouts));
+
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        for (WorkoutStats.WeekBucket bucket : buckets) {
+            series.getData().add(new XYChart.Data<>(bucket.weekStart().format(labelFormat), bucket.totalReps()));
         }
-        return buckets;
+        chart.getData().setAll(series);
+        summary.setText(summaryText(buckets));
+    }
+
+    /** "All" runs from the week of the first workout, capped at a year so the bars stay readable. */
+    private int weeksFor(TimeRange range, List<Workout> workouts) {
+        if (range.weeks > 0) {
+            return range.weeks;
+        }
+        LocalDate earliest = workouts.stream()
+                .map(Workout::getDate)
+                .filter(d -> d != null)
+                .min(LocalDate::compareTo)
+                .orElse(null);
+        if (earliest == null) {
+            return 1;
+        }
+        LocalDate thisMonday = LocalDate.now().with(DayOfWeek.MONDAY);
+        long weeks = ChronoUnit.WEEKS.between(earliest.with(DayOfWeek.MONDAY), thisMonday) + 1;
+        return (int) Math.min(weeks, 52);
+    }
+
+    /** Text version of the chart, so the numbers don't depend on reading bar heights or colour. */
+    private String summaryText(List<WorkoutStats.WeekBucket> buckets) {
+        int total = 0;
+        WorkoutStats.WeekBucket best = null;
+        for (WorkoutStats.WeekBucket bucket : buckets) {
+            total += bucket.totalReps();
+            if (bucket.totalReps() > 0 && (best == null || bucket.totalReps() > best.totalReps())) {
+                best = bucket;
+            }
+        }
+        if (best == null) {
+            return "No workouts logged in this period.";
+        }
+        return String.format("%d reps over %d weeks. Most active week: week of %s (%d reps).",
+                total, buckets.size(),
+                best.weekStart().format(DateTimeFormatter.ofPattern("MMM d")), best.totalReps());
     }
 
     // ---- Body metrics (single current snapshot — no historical log exists yet) ------
@@ -207,14 +249,14 @@ public class ProgressAnalyticsView implements Page {
         header.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
         LocalProfileStore profile = LocalProfileStore.getInstance();
-        double weight = profile.weightKg;
-        double height = profile.heightCm;
-        double bmi = (height > 0) ? weight / Math.pow(height / 100.0, 2) : 0;
+        UnitSystem units = profile.unitSystem;
+        double bmi = BmiCalculator.bmi(profile.heightCm, profile.weightKg);
+        String bmiCaption = bmi > 0 ? "BMI (" + BmiCalculator.category(bmi) + ")" : "BMI";
 
         HBox row = new HBox(16,
-                statCard("Weight", weight > 0 ? String.format("%.1f kg", weight) : "—"),
-                statCard("Height", height > 0 ? String.format("%.0f cm", height) : "—"),
-                statCard("BMI", bmi > 0 ? String.format("%.1f", bmi) : "—"));
+                statCard("Weight", UnitConverter.formatWeight(profile.weightKg, units)),
+                statCard("Height", UnitConverter.formatHeight(profile.heightCm, units)),
+                statCard(bmiCaption, bmi > 0 ? String.format("%.1f", bmi) : UnitConverter.NOT_SET));
         for (Node node : row.getChildren()) {
             HBox.setHgrow(node, Priority.ALWAYS);
         }

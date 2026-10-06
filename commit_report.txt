@@ -1,0 +1,146 @@
+=== git shortlog --summary --numbered --all --no-merges ===
+    43	Abin071
+    15	Ebin Sunny
+    15	Helvin Shaijan
+     6	Junxi
+     5	adrieltan
+     5	amish
+     2	Abin Alias
+     2	Jifin Joshy
+     2	Kinetic Fitness Dev
+     1	Abin
+
+=== git log ===
+455efe4 was Helvin Shaijan (helvinshaijan@gmail.com), 1789653918, 23 hours ago, message: Merge origin/main; goal timeline and achieved state on main's per-user profile design
+03877c5 was amishprasad (n12461521@qut.edu.au), 1789649548, 24 hours ago, message: Merge pull request #60 from amishprasad/feature/amish-settings-progress-functional
+9b444ea was amish (amishsp17@gmail.com), 1789647433, 25 hours ago, message: Settings and Progress Pages updated
+917d2a6 was Abin (abinalias071@gmail.com), 1789630633, 30 hours ago, message: Merge pull request #59 from amishprasad/feature/abin-schedule-and-reminders
+16be81e was Helvin Shaijan (helvinshaijan@gmail.com), 1789619451, 33 hours ago, message: Per-user profiles, single-step profile setup, goal timeline and achieved state
+f203ef4 was Abin071 (abinalias071@gmail.com), 1789571809, 2 days ago, message: feat: warn when a new workout clashes with an existing one US-10. ScheduleView asks for confirmation instead of refusing
+043d482 was Abin071 (abinalias071@gmail.com), 1789571059, 2 days ago, message: test: pin boundary behaviour for clash detection Back-to-back sessions, an empty schedule, and a workout on another day. All three pass
+77cff7e was Helvin Shaijan (helvinshaijan@gmail.com), 1789570690, 2 days ago, message: Merge remote-tracking branch 'origin/main' into feature/goals-settings
+087a7c7 was Helvin Shaijan (helvinshaijan@gmail.com), 1789570627, 2 days ago, message: Add goal summary, timeline and achieved state with target dates
+986bf37 was Abin071 (abinalias071@gmail.com), 1789570434, 2 days ago, message: feat: ignore completed and skipped workouts when detecting clashes  (GREEN) US-10.ScheduleConflictDetectorTest Pass.
+e98ae0e was Abin071 (abinalias071@gmail.com), 1789570022, 2 days ago, message: test: a completed workout does not block the slot (RED) US-10. Fails.
+2a5b645 was Abin071 (abinalias071@gmail.com), 1789567422, 2 days ago, message: fix: show an error panel when a page fails to load AppShell.navigate() was assigning null to the centre pane when getContent() threw, so a broken screen looked like an empty one. Now reports it.
+9082253 was Abin071 (abinalias071@gmail.com), 1789567221, 2 days ago, message: fix: load the saved profile on login, keyed per user,
+eb126c2 was Abin071 (abinalias071@gmail.com), 1789555134, 2 days ago, message: fix: update DashboardView for the new ScheduledWorkout API
+0e514ce was Abin071 (abinalias071@gmail.com), 1789554867, 2 days ago, message: Merge remote-tracking branch 'origin/main' into feature/abin-schedule-and-reminders
+b0eb689 was ebinsunny123 (ebinsunny324@gmail.com), 1789553650, 2 days ago, message: Merge pull request #57 from amishprasad/feature/ebin-dashboard
+21cbc01 was Abin071 (abinalias071@gmail.com), 1789549131, 2 days ago, message: feat: detect a workout overlapping an existing one clashes
+5344c12 was Ebin Sunny (the-email-on-your-github), 1789552817, 2 days ago, message: Merge remote-tracking branch 'origin/main' into feature/ebin-dashboard
+94706d6 was Ebin Sunny (the-email-on-your-github), 1789552710, 2 days ago, message: Expand exercise library
+48a97b0 was Abin071 (abinalias071@gmail.com), 1789552440, 2 days ago, message: cleanup
+a0eec6c was Abin071 (abinalias071@gmail.com), 1789552079, 2 days ago, message: cleanup
+35826b2 was ebinsunny123 (ebinsunny324@gmail.com), 1789551441, 2 days ago, message: Merge pull request #56 from amishprasad/feature/ebin-dashboard
+c475503 was Ebin Sunny (the-email-on-your-github), 1789550406, 2 days ago, message: Expand exercise library
+6905493 was Abin071 (abinalias071@gmail.com), 1789548728, 2 days ago, message: test: a workout overlapping an existing one clashes
+cd09f0d was Abin071 (abinalias071@gmail.com), 1789548313, 2 days ago, message: mapping stories to code and tests
+98f510f was Abin (abinalias071@gmail.com), 1789548220, 2 days ago, message: Merge pull request #55 from amishprasad/feature/ebin-dashboard
+b3114b5 was Abin071 (abinalias071@gmail.com), 1789548163, 2 days ago, message: typed schedule with status tracking and reminders
+17d47de was Ebin Sunny (the-email-on-your-github), 1789547997, 2 days ago, message: training volume chart to workout history
+84cc198 was Ebin Sunny (the-email-on-your-github), 1789547951, 2 days ago, message: Add dashboard summary cards, body metrics and training volume chart
+c3d7a40 was Ebin Sunny (the-email-on-your-github), 1789547915, 2 days ago, message: Share today's meal log between Meal Log and Dashboard
+7083df7 was Ebin Sunny (the-email-on-your-github), 1789547893, 2 days ago, message: Add shared volume chart component and meal log store
+446bad4 was Ebin Sunny (the-email-on-your-github), 1789545328, 2 days ago, message: Implement BmiCalculator so BMI and category tests pass
+6eb3fb3 was Ebin Sunny (the-email-on-your-github), 1789545214, 2 days ago, message: Add BMI calculator with failing tests
+0e32f7c was Ebin Sunny (the-email-on-your-github), 1789543656, 2 days ago, message: Implement WorkoutStats
+6360461 was amishprasad (n12461521@qut.edu.au), 1789369337, 4 days ago, message: Merge pull request #54 from amishprasad/feature/amish-Settings&ReportPages
+17b7c40 was amish (amishsp17@gmail.com), 1789368820, 4 days ago, message: Merge main, resolve duplicate SettingsView entry
+1af56d5 was Abin (abinalias071@gmail.com), 1789368717, 4 days ago, message: Update README with TDD section
+16e8e44 was Helvin Shaijan (helvinshaijan@gmail.com), 1789366710, 4 days ago, message: added new goals setting with main
+bf3d97e was Helvin Shaijan (helvinshaijan@gmail.com), 1789366554, 4 days ago, message: Merge remote-tracking branch 'origin/main' into feature/goals-settings
+1372578 was Abin071 (abinalias071@gmail.com), 1789365870, 4 days ago, message: added jifin's meal log view into main
+baeb998 was Helvin Shaijan (helvinshaijan@gmail.com), 1789365740, 4 days ago, message: Remove delete panel from Goals page; saving overwrites the current goal
+543ce81 was Abin071 (abinalias071@gmail.com), 1789365730, 4 days ago, message: Merge remote-tracking branch 'origin/feature/jifin-meallogging'
+f65a412 was Helvin Shaijan (helvinshaijan@gmail.com), 1789365665, 4 days ago, message: Replace milestone tracker with goal-setting Goals page
+ba44c93 was Abin071 (abinalias071@gmail.com), 1789365494, 4 days ago, message: added integration/login with main
+681fab9 was Abin071 (abinalias071@gmail.com), 1789365445, 4 days ago, message: Merge remote-tracking branch 'origin/integration/login'
+f3829f9 was Helvin Shaijan (helvinshaijan@gmail.com), 1789365420, 4 days ago, message: Replace milestone tracker with goal-setting Goals page
+88d5a6f was Helvin Shaijan (helvinshaijan@gmail.com), 1789365084, 4 days ago, message: Merge feature/helvin-profile; replace milestone tracker with goal-setting Goals page
+fc4e7cc was Abin071 (abinalias071@gmail.com), 1789364782, 4 days ago, message: Added junxi's log workout to main
+1974e41 was Helvin Shaijan (helvinshaijan@gmail.com), 1789359475, 4 days ago, message: Merge feature/helvin-profile; add Goal Settings screen backed by ProfileDAO
+6077793 was Helvin Shaijan (helvinshaijan@gmail.com), 1789358474, 4 days ago, message: Profile setup ends at personal details; drop goals step from wizard
+425d131 was Abin071 (abinalias071@gmail.com), 1789358263, 4 days ago, message: Stop tracking kineticfitness.db; ignore *.db
+a2f3be4 was gabrielpakka-source (gabrielpakka@gmail.com), 1789356386, 4 days ago, message: Merge pull request #52 from amishprasad/feature/adriel-login-register
+95daa04 was adrieltan (gabrielpakka@gmail.com), 1789356313, 4 days ago, message: Merge main into feature/adriel-login-register
+21a1e8c was Junxi (n12418358@qut.edu.au), 1789353771, 4 days ago, message: comments
+942d693 was Junxi (n12418358@qut.edu.au), 1789353322, 4 days ago, message: Main updated
+c6f96b9 was Junxi (n12418358@qut.edu.au), 1789352836, 4 days ago, message: resolving conflicts of merging
+516d0b3 was amish (amishsp17@gmail.com), 1789350895, 4 days ago, message: Merge main into feature branch, resolve Main.java conflict
+11680a9 was amish (amishsp17@gmail.com), 1789349484, 5 days ago, message: Settings and Progress Pages Added
+ffdb5b2 was Jifin Joshy (n11884860@qut.edu.au), 1789341010, 5 days ago, message: Add functional MealLogView with tests; fix pom.xml JUnit version conflict blocking all tests
+288beee was Junxi (n12418358@qut.edu.au), 1789339290, 5 days ago, message: Workout History Completed - Duplication bug on UI fixed
+8a4ba3e was Helvin Shaijan (helvinshaijan@gmail.com), 1789322808, 5 days ago, message: Profile view+ database+ edit profile
+bed09b8 was Abin071 (abinalias071@gmail.com), 1789319270, 5 days ago, message: Integrate login/register with profile persistence; pre-fill account email and format fitness levels
+682e393 was Abin071 (abinalias071@gmail.com), 1789317549, 5 days ago, message: Merge remote-tracking branch 'origin/feature/adriel-login-register' into integration/login
+669089f was Abin071 (abinalias071@gmail.com), 1789316945, 5 days ago, message: Linked ProfileDAO with Profile view
+b2a7cd6 was Abin071 (abinalias071@gmail.com), 1789316556, 5 days ago, message: Linked ProfileDAO with Profile view
+521b69e was Junxi (n12418358@qut.edu.au), 1789308385, 5 days ago, message: Logworkout completed
+76abd17 was Abin071 (abinalias071@gmail.com), 1789302288, 5 days ago, message: Merge remote-tracking branch 'origin/feature/helvin-profile'
+1aa2d51 was Junxi (n12418358@qut.edu.au), 1789301589, 5 days ago, message: Logworkout interface
+422ad96 was Helvin Shaijan (helvinshaijan@gmail.com), 1789294153, 5 days ago, message: Profile view + goals
+30a40a6 was adrieltan (gabrielpakka@gmail.com), 1789280165, 5 days ago, message: Add login/register pages and wire up logout
+ba56650 was Helvin Shaijan (helvinshaijan@gmail.com), 1789279717, 5 days ago, message: Save feature progress
+0b98b6a was Abin071 (abinalias071@gmail.com), 1789277007, 5 days ago, message: Update
+eb29981 was Abin071 (abinalias071@gmail.com), 1789234641, 6 days ago, message: Merge branch 'feature/Abin-TestWiring'
+7ecaf70 was Abin071 (abinalias071@gmail.com), 1789234619, 6 days ago, message: Wired database into schedule view
+06bb526 was Abin071 (abinalias071@gmail.com), 1789234396, 6 days ago, message: Wired database into schedule view
+74fcd0d was Abin071 (abinalias071@gmail.com), 1789217419, 6 days ago, message: Merge branch 'main' of https://github.com/amishprasad/CAB302-ASSIGNMENT-1
+4e1ae1e was Abin071 (abinalias071@gmail.com), 1789216886, 6 days ago, message: Merge pull request #43 from amishprasad/feature/ebin-database
+de70499 was Ebin Sunny (your-real-email@example.com), 1789216639, 6 days ago, message: Add exercise selection/library view
+809e128 was Abin071 (abinalias071@gmail.com), 1789206512, 6 days ago, message: Merge branch 'main' of https://github.com/amishprasad/CAB302-ASSIGNMENT-1
+56803b2 was Abin071 (abinalias071@gmail.com), 1789206487, 6 days ago, message: Merge pull request #42 from amishprasad/feature/ebin-database
+7ae4c6e was Ebin Sunny (your-real-email@example.com), 1789206318, 6 days ago, message: Add Dashboard view
+c1b8f2e was Abin071 (abinalias071@gmail.com), 1789204481, 6 days ago, message: Merge branch 'main' of https://github.com/amishprasad/CAB302-ASSIGNMENT-1
+6982ee9 was Abin071 (abinalias071@gmail.com), 1789204470, 6 days ago, message: Merge pull request #41 from amishprasad/feature/ebin-database
+1330808 was Ebin Sunny (your-real-email@example.com), 1789204272, 6 days ago, message: Wire up DatabaseConnection initialization in Main
+4781a57 was Abin071 (abinalias071@gmail.com), 1789203186, 6 days ago, message: Merge branch 'main' of https://github.com/amishprasad/CAB302-ASSIGNMENT-1
+dce7e17 was Abin071 (abinalias071@gmail.com), 1789203119, 6 days ago, message: Merge pull request #40 from amishprasad/feature/ebin-database
+5ef2b3e was Ebin Sunny (your-real-email@example.com), 1789202924, 6 days ago, message: Add scheduled_workouts table and ScheduleDAO
+3b2f969 was Ebin Sunny (your-real-email@example.com), 1789201135, 6 days ago, message: Add SQLite database layer with DAOs for User, Workout, and Goal
+aa0cc91 was Abin071 (abinalias071@gmail.com), 1789198908, 6 days ago, message: Merge branch 'main' of https://github.com/amishprasad/CAB302-ASSIGNMENT-1
+a05a95b was Abin071 (abinalias071@gmail.com), 1789196488, 6 days ago, message: Merge pull request #39 from amishprasad/feature/AbinAlias-setup
+eac5a34 was Abin071 (abinalias071@gmail.com), 1789195308, 6 days ago, message: Merge branch 'feature/AbinAlias-setup'
+7bcbb0d was Abin071 (abinalias071@gmail.com), 1789194948, 6 days ago, message: Add app shell + navigation,and Schedule page
+e14cd14 was Abin071 (abinalias071@gmail.com), 1789139730, 7 days ago, message: Update
+cbc600b was Abin Alias (abinalias071@gmail.com), 1788876937, 10 days ago, message: Add Workout History screen (WorkoutHistoryView)
+35c23f4 was Abin Alias (abinalias071@gmail.com), 1788681260, 12 days ago, message: Add workout logging + goals screens, wire up profile creation
+1739a37 was Abin071 (abinalias071@gmail.com), 1788159980, 3 weeks ago, message: Merge pull request #9 from amishprasad/feature/jifin-userprofile
+94d1075 was Abin071 (abinalias071@gmail.com), 1788159435, 3 weeks ago, message: Fix formatting in team workflow section of README
+95cae21 was Abin071 (abinalias071@gmail.com), 1788159409, 3 weeks ago, message: Clean up README instructions on branching
+2142ad1 was Abin071 (abinalias071@gmail.com), 1788159384, 3 weeks ago, message: Enhance team workflow instructions in README
+e4a26c0 was adrieltan (gabrielpakka@gmail.com), 1788158371, 3 weeks ago, message: Adriel Push
+88fce45 was Abin071 (abinalias071@gmail.com), 1788157509, 3 weeks ago, message: Add team workflow guidelines to README
+923583b was Abin071 (abinalias071@gmail.com), 1788157458, 3 weeks ago, message: Add git pull command to README
+486e380 was amish (amishsp17@gmail.com), 1788146194, 3 weeks ago, message: 1st push!
+2098c88 was Jifin Joshy (n11884860@qut.edu.au), 1788133663, 3 weeks ago, message: Add Meal and DailyLog models for diet, protein, and water tracking
+a26f17b was Abin071 (abinalias071@gmail.com), 1788110902, 3 weeks ago, message: Update Pull Request review process wording
+cac1dc2 was Abin071 (abinalias071@gmail.com), 1788110849, 3 weeks ago, message: Update README to streamline project information
+ecd86a6 was Abin071 (abinalias071@gmail.com), 1788096526, 3 weeks ago, message: Merge remote-tracking branch 'origin/main' into feature/AbinAlias-setup
+47656ed was Abin071 (abinalias071@gmail.com), 1788096473, 3 weeks ago, message: Previous Skeleton code - abin
+263c65b was Abin071 (abinalias071@gmail.com), 1788096458, 3 weeks ago, message: Previous Skeleton code - abin
+79dcd41 was Abin071 (abinalias071@gmail.com), 1788095381, 3 weeks ago, message: Merge pull request #8 from amishprasad/feature/Helvin_Shaijan-setup
+e650cce was Abin071 (abinalias071@gmail.com), 1788095333, 3 weeks ago, message: Updated README
+97abf64 was Helvin Shaijan (helvinshaijan@gmail.com), 1788094996, 3 weeks ago, message: US-01: Profile screen, wire into Main via button
+db5d74a was Abin071 (abinalias071@gmail.com), 1788093572, 3 weeks ago, message: Update README
+a0a5819 was Helvin Shaijan (helvinshaijan@gmail.com), 1788093229, 3 weeks ago, message: Add <yourname> to contributors
+e7e83dc was Helvin Shaijan (helvinshaijan@gmail.com), 1788073435, 3 weeks ago, message: Merge branch 'main' of https://github.com/amishprasad/CAB302-ASSIGNMENT-1
+aea51e8 was Helvin Shaijan (helvinshaijan@gmail.com), 1788073398, 3 weeks ago, message: old
+8e29d54 was Abin071 (abinalias071@gmail.com), 1788025801, 3 weeks ago, message: Merge pull request #6 from amishprasad/docs/team-compact
+870ff4e was Abin071 (abinalias071@gmail.com), 1788025064, 3 weeks ago, message: Add signed team compact
+d747959 was Abin071 (abinalias071@gmail.com), 1788023200, 3 weeks ago, message: Add Abin Alias to contributors
+e9dea8e was Abin071 (abinalias071@gmail.com), 1788020477, 3 weeks ago, message: Add Maven + JavaFX skeleton
+f422339 was Junxi (n12418358@qut.edu.au), 1787539243, 4 weeks ago, message: Adding files to repo
+4f729ec was Ebin Sunny (your-real-email@example.com), 1787222732, 4 weeks ago, message: testing
+8c18e97 was Abin071 (abinalias071@gmail.com), 1787222220, 4 weeks ago, message: Testing ebin
+07ee29a was adrieltan (gabrielpakka@gmail.com), 1787119691, 4 weeks ago, message: test Adriel
+9ae9b8e was adrieltan (gabrielpakka@gmail.com), 1787117256, 4 weeks ago, message: Merge branch 'main' of https://github.com/amishprasad/CAB302-ASSIGNMENT-1
+34907a8 was adrieltan (gabrielpakka@gmail.com), 1787116287, 4 weeks ago, message: Hello Amish
+db13f66 was Abin071 (abinalias071@gmail.com), 1786948863, 5 weeks ago, message: Hello World
+bf52dfa was Helvin Shaijan (helvinshaijan@gmail.com), 1786874471, 5 weeks ago, message: Test Helvin
+5766493 was Abin071 (abinalias071@gmail.com), 1786874167, 5 weeks ago, message: Test 2
+4498cd8 was Abin071 (abinalias071@gmail.com), 1786873990, 5 weeks ago, message: Testing
+810ddfa was Abin071 (abinalias071@gmail.com), 1786598917, 5 weeks ago, message: merge remote-tracking branch 'origin/main'
+6eb477d was Abin071 (abinalias071@gmail.com), 1786347917, 6 weeks ago, message: Add new file Hello.txt
+fe0b099 was adrieltan (gabrielpakka@gmail.com), 1786347715, 6 weeks ago, message: Hello Amish
