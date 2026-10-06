@@ -9,6 +9,8 @@ import com.kineticfitness.model.ScheduledWorkout;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.util.BmiCalculator;
+import com.kineticfitness.util.UnitConverter;
+import com.kineticfitness.util.UnitSystem;
 import com.kineticfitness.util.WorkoutStats;
 import com.kineticfitness.util.WorkoutStats.DatedVolume;
 import com.kineticfitness.util.WorkoutStats.Sample;
@@ -110,19 +112,27 @@ public class DashboardView implements Page {
     // ---------- headline stats ----------
 
     private HBox statRow(List<Workout> workouts, List<ScheduledWorkout> scheduled, DailyLog today) {
-        List<LocalDate> dates = new ArrayList<>();
-        for (Workout workout : workouts) {
-            dates.add(workout.getDate());
-        }
+        List<LocalDate> dates = workoutDates(workouts);
         int thisWeek = WorkoutStats.sessionsThisWeek(dates, LocalDate.now());
+        int streak = WorkoutStats.currentStreak(dates, LocalDate.now());
 
         HBox row = new HBox(16,
                 statCard("Workouts Logged", String.valueOf(workouts.size())),
                 statCard("This Week", thisWeek + " of " + store.weeklyWorkoutGoal),
                 statCard("Upcoming Sessions", String.valueOf(scheduled.size())),
                 statCard("Calories Today", today.getTotalCalories() + " kcal"));
+                statCard("Current Streak", streak + (streak == 1 ? " day" : " days"));
+
         row.setAlignment(Pos.CENTER_LEFT);
         return row;
+    }
+
+    private List<LocalDate> workoutDates(List<Workout> workouts) {
+        List<LocalDate> dates = new ArrayList<>();
+        for (Workout workout : workouts) {
+            dates.add(workout.getDate());
+        }
+        return dates;
     }
 
     private VBox statCard(String caption, String value) {
@@ -135,7 +145,7 @@ public class DashboardView implements Page {
         VBox card = new VBox(6, valueLabel, captionLabel);
         card.setPadding(new Insets(20));
         card.setStyle(CARD);
-        card.setPrefWidth(220);
+        card.setPrefWidth(180);
         HBox.setHgrow(card, Priority.ALWAYS);
         return card;
     }
@@ -143,9 +153,11 @@ public class DashboardView implements Page {
     // ---------- body metrics ----------
 
     private VBox bodyMetricsCard() {
+        UnitSystem units = store.unitSystem == null ? UnitSystem.METRIC : store.unitSystem;
+
         double bmi = BmiCalculator.bmi(store.heightCm, store.weightKg);
 
-        Label bmiValue = new Label(bmi > 0 ? String.format("%.1f", bmi) : "—");
+        Label bmiValue = new Label(bmi > 0 ? String.format("%.1f", bmi) : UnitConverter.NOT_SET);
         bmiValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: "
                 + BmiCalculator.categoryColour(bmi) + ";");
 
@@ -154,13 +166,12 @@ public class DashboardView implements Page {
         VBox bmiColumn = new VBox(4, bmiValue, bmiCaption);
 
         HBox metrics = new HBox(0,
-                metricColumn("Height", store.heightCm > 0 ? String.format("%.0f cm", store.heightCm) : "—"),
-                metricColumn("Weight", store.weightKg > 0 ? String.format("%.0f kg", store.weightKg) : "—"),
+                metricColumn("Height", UnitConverter.formatHeight(store.heightCm, units)),
+                metricColumn("Weight", UnitConverter.formatWeight(store.weightKg, units)),
                 bmiColumn,
-                metricColumn("Age", age() > 0 ? age() + " yrs" : "—"),
+                metricColumn("Age", age() > 0 ? age() + " yrs" : UnitConverter.NOT_SET),
                 metricColumn("Goal", store.primaryGoal != null ? store.primaryGoal.display : "Not set"),
-                metricColumn("Target Weight",
-                        store.targetWeightKg > 0 ? String.format("%.0f kg", store.targetWeightKg) : "—"));
+                metricColumn("Target Weight", UnitConverter.formatWeight(store.targetWeightKg, units)));
         metrics.setAlignment(Pos.CENTER_LEFT);
         for (Node column : metrics.getChildren()) {
             HBox.setHgrow(column, Priority.ALWAYS);
@@ -172,7 +183,6 @@ public class DashboardView implements Page {
         }
         return card;
     }
-
     private VBox metricColumn(String caption, String value) {
         Label valueLabel = new Label(value);
         valueLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
