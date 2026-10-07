@@ -39,6 +39,7 @@ public class Main extends Application {
     private void launchApp(Stage stage) {
         new AppShell(stage)
                 .add(new DashboardView())
+                .add(new MealLogView())
                 .add(new ProfileDetailsView())                 // ← was ProfilePage, renamed on main
                 .add(new LogWorkoutView())
                 .add(new WorkoutHistoryView())
