@@ -11,7 +11,7 @@ public class UserDAO {
     private static final String SELECT_COLUMNS =
             "username, fitness_level, age, height_cm, weight_kg, password, email, phone_number";
 
-    /** Used by the profile page to persist changes to an already-registered account. */
+
     public void save(User user) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = """
@@ -35,6 +35,20 @@ public class UserDAO {
             statement.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Failed to save user: " + e.getMessage());
+        }
+    }
+
+    /** Used by the Settings page to change a signed-in user's password. */
+    public boolean updatePassword(String username, String newHashedPassword) {
+        Connection connection = DatabaseConnection.getInstance();
+        String sql = "UPDATE users SET password = ? WHERE username = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, newHashedPassword);
+            statement.setString(2, username);
+            return statement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Failed to update password: " + e.getMessage());
+            return false;
         }
     }
 
@@ -70,14 +84,7 @@ public class UserDAO {
         return new User(username, hashedPassword, email, phoneNumber);
     }
 
-    /**
-     * Verifies login credentials against the {@code users} table. {@code usernameOrEmail}
-     * may be either the account's username or its email address, so people can log in
-     * with whichever they remember.
-     *
-     * @return the matching user when the password is correct, otherwise {@code null}
-     *         (deliberately not distinguishing "no such account" from "wrong password").
-     */
+
     public User authenticate(String usernameOrEmail, String rawPassword) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "SELECT " + SELECT_COLUMNS + " FROM users WHERE username = ? OR email = ?";
@@ -146,6 +153,22 @@ public class UserDAO {
             }
         } catch (SQLException e) {
             System.err.println("Failed to load user: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /** The email stored on a user's account, or null if not found. */
+    public String getEmail(String username) {
+        Connection connection = DatabaseConnection.getInstance();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT email FROM users WHERE username = ?")) {
+            statement.setString(1, username);
+            ResultSet rs = statement.executeQuery();
+            if (rs.next()) {
+                return rs.getString("email");
+            }
+        } catch (SQLException e) {
+            System.err.println("Failed to load email: " + e.getMessage());
         }
         return null;
     }

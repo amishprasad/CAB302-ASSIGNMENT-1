@@ -1,5 +1,7 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.util.UnitSystem;
+
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -35,8 +37,55 @@ public class LocalProfileStore {
     public final Set<String> preferredWorkoutTypes = new LinkedHashSet<>();
     public final Set<String> preferredWorkoutDays = new LinkedHashSet<>();
 
+    // ---- App preferences (Settings page) ----
+    public UnitSystem unitSystem = UnitSystem.METRIC;
+    public boolean notifyWorkoutReminders = true;
+    public boolean notifyGoalAlerts = true;
+    public boolean notifyWeeklySummary = false;
+
+    /** Set automatically the first time a goal is saved; preserved across edits. */
+    public LocalDate goalStartDate = null;
+    /** The deadline the user picked for the goal. */
+    public LocalDate goalTargetDate = null;
+    /** Set when the goal is completed; null while it is still active. */
+    public LocalDate goalAchievedDate = null;
+
+    /**
+     * Resets every field to its default. Called when a user signs in or out, so one
+     * account's details can never be shown to the next person to log in.
+     */
+    public void clear() {
+        firstName = "";
+        email = "";
+        gender = null;
+        photoPath = null;
+        dateOfBirth = null;
+        heightCm = 0;
+        weightKg = 0;
+        fitnessLevel = FitnessLevel.BEGINNER;
+        primaryGoal = null;
+        targetWeightKg = 0;
+        weeklyWorkoutGoal = 4;
+        weeklyExerciseDurationMinutes = 240;
+        experienceLevel = FitnessLevel.BEGINNER;
+        preferredWorkoutTypes.clear();
+        preferredWorkoutDays.clear();
+        goalStartDate = null;
+        goalTargetDate = null;
+        goalAchievedDate = null;
+        milestones.clear();
+        unitSystem = UnitSystem.METRIC;
+        notifyWorkoutReminders = true;
+        notifyGoalAlerts = true;
+        notifyWeeklySummary = false;
+    }
+
     public boolean hasPersonalDetails() {
         return dateOfBirth != null;
+    }
+
+    public boolean isGoalAchieved() {
+        return primaryGoal != null && goalAchievedDate != null;
     }
 
     public boolean hasGoals() {

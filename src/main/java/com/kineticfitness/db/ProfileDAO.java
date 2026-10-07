@@ -15,14 +15,15 @@ public class ProfileDAO {
 
     private final UserDAO userDAO = new UserDAO();
 
-    public void save(LocalProfileStore s) {
+    public void save(LocalProfileStore s, String username) {
         Connection conn = DatabaseConnection.getInstance();
         String sql = """
             INSERT INTO profiles (id, first_name, email, gender, photo_path, date_of_birth,
                                   height_cm, weight_kg, fitness_level, primary_goal, target_weight_kg,
                                   weekly_workout_goal, weekly_duration_minutes, experience_level,
-                                  preferred_types, preferred_days)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                  preferred_types, preferred_days,
+                                  goal_start_date, goal_target_date, goal_achieved_date)
+            VALUES ((SELECT id FROM users WHERE username = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 first_name = excluded.first_name, email = excluded.email, gender = excluded.gender,
                 photo_path = excluded.photo_path, date_of_birth = excluded.date_of_birth,
@@ -31,39 +32,40 @@ public class ProfileDAO {
                 target_weight_kg = excluded.target_weight_kg, weekly_workout_goal = excluded.weekly_workout_goal,
                 weekly_duration_minutes = excluded.weekly_duration_minutes,
                 experience_level = excluded.experience_level,
-                preferred_types = excluded.preferred_types, preferred_days = excluded.preferred_days
+                preferred_types = excluded.preferred_types, preferred_days = excluded.preferred_days,
+                goal_start_date = excluded.goal_start_date, goal_target_date = excluded.goal_target_date,
+                goal_achieved_date = excluded.goal_achieved_date
         """;
         try (PreparedStatement st = conn.prepareStatement(sql)) {
-            st.setString(1, s.firstName);
-            st.setString(2, s.email);
-            st.setString(3, s.gender == null ? null : s.gender.name());
-            st.setString(4, s.photoPath);
-            st.setString(5, s.dateOfBirth == null ? null : s.dateOfBirth.toString());
-            st.setDouble(6, s.heightCm);
-            st.setDouble(7, s.weightKg);
-            st.setString(8, s.fitnessLevel == null ? null : s.fitnessLevel.name());
-            st.setString(9, s.primaryGoal == null ? null : s.primaryGoal.name());
-            st.setDouble(10, s.targetWeightKg);
-            st.setInt(11, s.weeklyWorkoutGoal);
-            st.setInt(12, s.weeklyExerciseDurationMinutes);
-            st.setString(13, s.experienceLevel == null ? null : s.experienceLevel.name());
-            st.setString(14, String.join(",", s.preferredWorkoutTypes));
-            st.setString(15, String.join(",", s.preferredWorkoutDays));
+            st.setString(1, username);
+            st.setString(2, s.firstName);
+            st.setString(3, s.email);
+            st.setString(4, s.gender == null ? null : s.gender.name());
+            st.setString(5, s.photoPath);
+            st.setString(6, s.dateOfBirth == null ? null : s.dateOfBirth.toString());
+            st.setDouble(7, s.heightCm);
+            st.setDouble(8, s.weightKg);
+            st.setString(9, s.fitnessLevel == null ? null : s.fitnessLevel.name());
+            st.setString(10, s.primaryGoal == null ? null : s.primaryGoal.name());
+            st.setDouble(11, s.targetWeightKg);
+            st.setInt(12, s.weeklyWorkoutGoal);
+            st.setInt(13, s.weeklyExerciseDurationMinutes);
+            st.setString(14, s.experienceLevel == null ? null : s.experienceLevel.name());
+            st.setString(15, String.join(",", s.preferredWorkoutTypes));
+            st.setString(16, String.join(",", s.preferredWorkoutDays));
+            st.setString(17, s.goalStartDate == null ? null : s.goalStartDate.toString());
+            st.setString(18, s.goalTargetDate == null ? null : s.goalTargetDate.toString());
+            st.setString(19, s.goalAchievedDate == null ? null : s.goalAchievedDate.toString());
             st.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Failed to save profile: " + e.getMessage());
         }
-
-        User user = toUser(s);
-        if (user != null) {
-            userDAO.save(user);
-            UserSession.setCurrentUser(user);
-        }
     }
 
-    public boolean load(LocalProfileStore s) {
+    public boolean load(LocalProfileStore s, String username) {
         Connection conn = DatabaseConnection.getInstance();
-        try (PreparedStatement st = conn.prepareStatement("SELECT * FROM profiles WHERE id = 1")) {
+        try (PreparedStatement st = conn.prepareStatement("SELECT * FROM profiles WHERE id = (SELECT id FROM users WHERE username = ?)")) {
+            st.setString(1, username);
             ResultSet rs = st.executeQuery();
             if (rs.next()) {
                 s.firstName = orEmpty(rs.getString("first_name"));
@@ -86,9 +88,10 @@ public class ProfileDAO {
                 if (el != null) s.experienceLevel = LocalProfileStore.FitnessLevel.valueOf(el);
                 fillSet(s.preferredWorkoutTypes, rs.getString("preferred_types"));
                 fillSet(s.preferredWorkoutDays, rs.getString("preferred_days"));
+                s.goalStartDate = parseDate(rs.getString("goal_start_date"));
+                s.goalTargetDate = parseDate(rs.getString("goal_target_date"));
+                s.goalAchievedDate = parseDate(rs.getString("goal_achieved_date"));
 
-                User user = toUser(s);
-                if (user != null) UserSession.setCurrentUser(user);
                 return true;
             }
         } catch (SQLException e) {
@@ -105,6 +108,10 @@ public class ProfileDAO {
         com.kineticfitness.model.FitnessLevel level =
                 com.kineticfitness.model.FitnessLevel.valueOf(s.fitnessLevel.name());
         return new User(username, level, age, s.heightCm, s.weightKg);
+    }
+
+    private java.time.LocalDate parseDate(String v) {
+        return (v == null || v.isEmpty()) ? null : java.time.LocalDate.parse(v);
     }
 
     private String orEmpty(String v) { return v == null ? "" : v; }
