@@ -1,15 +1,17 @@
 package com.kineticfitness.view;
 
 import com.kineticfitness.model.DailyLog;
+import com.kineticfitness.model.LookupNutritionEstimator;
 import com.kineticfitness.model.Meal;
+import com.kineticfitness.model.NutritionEstimator;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
 
@@ -22,9 +24,18 @@ public class MealLogView implements Page {
     private static final String CARD = "-fx-background-color: white; -fx-background-radius: 10;"
             + " -fx-border-color: #E2E8F0; -fx-border-radius: 10;";
 
+    private final NutritionEstimator estimator;
     private final DailyLog dailyLog = new DailyLog(LocalDate.now());
     private final VBox mealListBox = new VBox(6);
     private final Label totalsLabel = new Label();
+
+    public MealLogView() {
+        this(new LookupNutritionEstimator());
+    }
+
+    public MealLogView(NutritionEstimator estimator) {
+        this.estimator = estimator;
+    }
 
     @Override
     public String label() {
@@ -36,7 +47,7 @@ public class MealLogView implements Page {
         Label title = new Label("Log a Meal");
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
-        Label subtitle = new Label("Track your meals, protein, and macros for today.");
+        Label subtitle = new Label("Type a meal name and press Estimate to fill in calories and macros.");
         subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + SUBTITLE + ";");
 
         TextField nameField = new TextField();
@@ -50,13 +61,26 @@ public class MealLogView implements Page {
         TextField fatsField = new TextField();
         fatsField.setPromptText("Fats (g)");
 
+        Label hintLabel = new Label();
+        hintLabel.setStyle("-fx-text-fill: " + SUBTITLE + "; -fx-font-size: 12px;");
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: #DC2626; -fx-font-size: 12px;");
+
+        Button estimateButton = new Button("Estimate");
+        estimateButton.setStyle("-fx-background-color: white; -fx-text-fill: " + ORANGE + ";"
+                + " -fx-border-color: " + ORANGE + "; -fx-border-radius: 6; -fx-background-radius: 6;");
+        estimateButton.setOnAction(e -> estimator.estimate(nameField.getText()).ifPresentOrElse(est -> {
+            caloriesField.setText(String.valueOf(est.getCalories()));
+            proteinField.setText(String.valueOf(est.getProtein()));
+            carbsField.setText(String.valueOf(est.getCarbs()));
+            fatsField.setText(String.valueOf(est.getFats()));
+            hintLabel.setText("Estimated values filled in - edit them if needed.");
+        }, () -> hintLabel.setText("No estimate found - please enter the values manually.")));
+        nameField.setOnAction(e -> estimateButton.fire());
 
         Button addButton = new Button("Add Meal");
         addButton.setStyle("-fx-background-color: " + ORANGE + "; -fx-text-fill: white; -fx-font-weight: bold;"
                 + " -fx-background-radius: 6; -fx-padding: 8 20;");
-
         addButton.setOnAction(e -> {
             try {
                 String name = nameField.getText().trim();
@@ -70,9 +94,9 @@ public class MealLogView implements Page {
                     return;
                 }
 
-                Meal meal = new Meal(name, calories, protein, carbs, fats);
-                dailyLog.addMeal(meal);
+                dailyLog.addMeal(new Meal(name, calories, protein, carbs, fats));
                 errorLabel.setText("");
+                hintLabel.setText("");
                 nameField.clear();
                 caloriesField.clear();
                 proteinField.clear();
@@ -87,13 +111,13 @@ public class MealLogView implements Page {
         GridPane form = new GridPane();
         form.setHgap(10);
         form.setVgap(10);
-        form.addRow(0, new Label("Meal name"), nameField);
+        form.addRow(0, new Label("Meal name"), new HBox(8, nameField, estimateButton));
         form.addRow(1, new Label("Calories"), caloriesField);
         form.addRow(2, new Label("Protein (g)"), proteinField);
         form.addRow(3, new Label("Carbs (g)"), carbsField);
         form.addRow(4, new Label("Fats (g)"), fatsField);
 
-        VBox formCard = new VBox(10, form, addButton, errorLabel);
+        VBox formCard = new VBox(10, form, hintLabel, addButton, errorLabel);
         formCard.setPadding(new Insets(20));
         formCard.setStyle(CARD);
 
@@ -113,10 +137,9 @@ public class MealLogView implements Page {
     private void refreshMealList() {
         mealListBox.getChildren().clear();
         for (Meal meal : dailyLog.getMeals()) {
-            HBox row = new HBox(20,
+            mealListBox.getChildren().add(new HBox(20,
                     new Label(meal.getName()),
-                    new Label(meal.getCalories() + " kcal"));
-            mealListBox.getChildren().add(row);
+                    new Label(meal.getCalories() + " kcal")));
         }
         totalsLabel.setText("Total: " + dailyLog.getTotalCalories() + " kcal, "
                 + dailyLog.getTotalProtein() + "g protein");
