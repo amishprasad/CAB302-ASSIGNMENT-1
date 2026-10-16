@@ -26,6 +26,7 @@ import com.kineticfitness.service.ProfileValidator;
 import com.kineticfitness.service.ValidationResult;
 import com.kineticfitness.db.UserDAO;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.util.UnitConverter;
 
 public class ProfileDetailsView implements Page {
 
@@ -315,8 +316,8 @@ public class ProfileDetailsView implements Page {
                 statColumn("Email", store.email.isEmpty() ? "-" : store.email),
                 statColumn("Gender", store.gender != null ? store.gender.display : "-"),
                 statColumn("Date of Birth", store.dateOfBirth != null ? store.dateOfBirth.toString() : "DD/MM/YYYY"),
-                statColumn("Height", String.format("%.0f cm", store.heightCm)),
-                statColumn("Weight", String.format("%.0f kg", store.weightKg)),
+                statColumn("Height", UnitConverter.formatHeight(store.heightCm, store.unitSystem)),
+                statColumn("Weight", UnitConverter.formatWeight(store.weightKg, store.unitSystem)),
                 statColumn("Fitness Level", levelLabel())
         );
 
