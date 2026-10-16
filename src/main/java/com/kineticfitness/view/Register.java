@@ -1,3 +1,13 @@
+/**
+ * Register GUI using javafx, prompts the user to create username, password and fill out their email, phone
+ * and password confirm
+ * if confirm password doesn't match with inputted password - error
+ * Method gets the user's inputs and checks with user DAO
+ * if dulplicate user information - Error
+ * if wrong email formatting - error
+ * if inputs don't exist and fomatting is correct - registered user
+ * Once succesful users are automatically redirected to login page
+ */
 package com.kineticfitness.view;
 
 import com.kineticfitness.db.UserDAO;
