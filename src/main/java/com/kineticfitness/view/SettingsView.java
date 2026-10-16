@@ -113,7 +113,27 @@ public class SettingsView implements Page {
         helper.setStyle("-fx-font-size: 12px; -fx-text-fill: " + SUBTITLE + ";");
 
         unitToggle.setStyle("-fx-background-color: #E2E8F0; -fx-background-radius: 8; -fx-padding: 4;");
-        unitToggle.getChildren().setAll(unitOption(UnitSystem.METRIC), unitOption(UnitSystem.IMPERIAL));
+
+        // ToggleButtons (not mouse-only Labels) so the choice can be reached with Tab and
+        // changed with Space/Enter, and so screen readers announce it as a button.
+        ToggleGroup unitGroup = new ToggleGroup();
+        ToggleButton metric = unitOption(UnitSystem.METRIC, unitGroup);
+        ToggleButton imperial = unitOption(UnitSystem.IMPERIAL, unitGroup);
+        unitToggle.getChildren().setAll(metric, imperial);
+
+        unitGroup.selectedToggleProperty().addListener((obs, previous, current) -> {
+            if (current == null) {
+                // Clicking the selected button again would leave nothing chosen; keep one on.
+                unitGroup.selectToggle(previous);
+                return;
+            }
+            selectedUnit = (UnitSystem) current.getUserData();
+            for (Node node : unitToggle.getChildren()) {
+                ToggleButton button = (ToggleButton) node;
+                applyUnitStyle(button, button.isSelected());
+            }
+        });
+        unitGroup.selectToggle(selectedUnit == UnitSystem.IMPERIAL ? imperial : metric);
 
         VBox card = new VBox(10, header, helper, unitToggle);
         card.setPadding(new Insets(20));
@@ -121,33 +141,32 @@ public class SettingsView implements Page {
         return card;
     }
 
-    private Label unitOption(UnitSystem system) {
-        Label option = new Label(system.displayName());
+    private ToggleButton unitOption(UnitSystem system, ToggleGroup group) {
+        ToggleButton option = new ToggleButton(system.displayName());
+        option.setToggleGroup(group);
+        option.setUserData(system);
         option.setMaxWidth(Double.MAX_VALUE);
         option.setAlignment(Pos.CENTER);
         HBox.setHgrow(option, Priority.ALWAYS);
         option.setPadding(new Insets(8, 0, 8, 0));
-        applyUnitStyle(option, system == selectedUnit);
-        option.setOnMouseClicked(e -> selectUnit(system));
+        option.setAccessibleText(system.displayName() + " units, "
+                + system.weightUnit() + " and " + system.heightUnit());
+        // Redraw on focus so the keyboard focus outline below appears and disappears.
+        option.focusedProperty().addListener((obs, was, now) -> applyUnitStyle(option, option.isSelected()));
         return option;
     }
 
-    private void selectUnit(UnitSystem system) {
-        selectedUnit = system;
-        for (Node node : unitToggle.getChildren()) {
-            Label option = (Label) node;
-            applyUnitStyle(option, option.getText().equals(system.displayName()));
-        }
-    }
-
-    private void applyUnitStyle(Label option, boolean active) {
-        if (active) {
-            option.setStyle("-fx-background-color: " + ORANGE + "; -fx-text-fill: white;"
-                    + " -fx-font-weight: bold; -fx-background-radius: 6; -fx-font-size: 13px;");
-        } else {
-            option.setStyle("-fx-background-color: transparent; -fx-text-fill: " + SUBTITLE + ";"
-                    + " -fx-font-weight: bold; -fx-background-radius: 6; -fx-font-size: 13px;");
-        }
+    private void applyUnitStyle(ToggleButton option, boolean active) {
+        String background = active ? ORANGE : "transparent";
+        String text = active ? "white" : SUBTITLE;
+        // Setting the background inline replaces JavaFX's built-in focus ring, so draw one
+        // explicitly; otherwise a keyboard user cannot see which button they are on. The
+        // border is always 2px (transparent when unfocused) so the buttons never shift.
+        String border = option.isFocused() ? TITLE : "transparent";
+        option.setStyle("-fx-background-color: " + background + "; -fx-background-insets: 0;"
+                + " -fx-text-fill: " + text + "; -fx-font-weight: bold;"
+                + " -fx-background-radius: 6; -fx-font-size: 13px;"
+                + " -fx-border-color: " + border + "; -fx-border-width: 2; -fx-border-radius: 6;");
     }
 
     private VBox buildNotificationsCard() {
@@ -177,6 +196,12 @@ public class SettingsView implements Page {
         currentPasswordField.setPrefWidth(160);
         newPasswordField.setPrefWidth(160);
         confirmPasswordField.setPrefWidth(160);
+
+        // These fields sit beside separate Labels, so screen readers need their own names.
+        usernameField.setAccessibleText("Username, read only");
+        currentPasswordField.setAccessibleText("Current password");
+        newPasswordField.setAccessibleText("New password");
+        confirmPasswordField.setAccessibleText("Confirm new password");
 
         grid.add(fieldLabel("Username"), 0, 0);
         grid.add(fieldLabel("Current Password"), 1, 0);
