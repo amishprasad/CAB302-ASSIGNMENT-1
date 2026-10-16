@@ -1,11 +1,3 @@
-/**
- * Login GUI using javafx, prompts user to input username and password
- * attemptlogin method gets the user's input and checks with user DAO
- * if inputs match with existing user - Login
- * If input doesn't match with existing user - Error
- * If left blank - Error
- * Allows users to redirect to register page
- * */
 package com.kineticfitness.view;
 
 import com.kineticfitness.db.UserDAO;
@@ -26,6 +18,15 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.util.function.Consumer;
+
+/**
+ * Login GUI using javafx, prompts user to input username and password
+ * attemptlogin method gets the user's input and checks with user DAO
+ * if inputs match with existing user - Login
+ * If input doesn't match with existing user - Error
+ * If left blank - Error
+ * Allows users to redirect to register page
+ * */
 
 public class Login {
 
