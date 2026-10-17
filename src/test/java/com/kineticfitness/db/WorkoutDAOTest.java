@@ -274,4 +274,14 @@ class WorkoutDAOTest {
         }
         return false;
     }
+
+    @Test
+    @DisplayName("if an exercise cannot be saved, the workout is not saved either")
+    void saveRollsBackWhenAnExerciseFails() {
+        workoutDAO.save(testUser, workout(DATE, "Doomed",
+                new Exercise("Bench Press", 4, 8, BodyPart.CHEST),
+                new Exercise(null, 3, 10, BodyPart.CHEST)));   // exercises.name is NOT NULL
+
+        assertTrue(workoutDAO.findAllByUsername("testuser").isEmpty());
+    }
 }
