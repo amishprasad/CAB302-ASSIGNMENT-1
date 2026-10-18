@@ -24,23 +24,45 @@ public class WorkoutDAO {
     public void save(User user, Workout workout) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = """
-            INSERT INTO workouts (user_id, workout_date, name)
-            VALUES ((SELECT id FROM users WHERE username = ?), ?, ?)
-        """;
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, user.getUsername());
-            statement.setString(2, workout.getDate().toString());
-            if (workout.getName() != null) {
-                statement.setString(3, workout.getName());
-            } else {
-                statement.setNull(3, java.sql.Types.VARCHAR);
+        INSERT INTO workouts (user_id, workout_date, name)
+        VALUES ((SELECT id FROM users WHERE username = ?), ?, ?)
+    """;
+        inTransaction(connection, "Failed to save workout", () -> {
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, user.getUsername());
+                statement.setString(2, workout.getDate().toString());
+                if (workout.getName() != null) {
+                    statement.setString(3, workout.getName());
+                } else {
+                    statement.setNull(3, java.sql.Types.VARCHAR);
+                }
+                statement.executeUpdate();
             }
-            statement.executeUpdate();
-
             int workoutId = lastInsertRowId(connection);
             saveExercises(connection, workoutId, workout.getExercises());
+        });
+    }
+
+    @FunctionalInterface
+    private interface SqlWork {
+        void run() throws SQLException;
+    }
+
+    private void inTransaction(Connection connection, String failureMessage, SqlWork work) {
+        try {
+            boolean previous = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                work.run();
+                connection.commit();
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(previous);
+            }
         } catch (SQLException e) {
-            System.err.println("Failed to save workout: " + e.getMessage());
+            throw new DataAccessException(failureMessage + ": " + e.getMessage(), e);
         }
     }
 
@@ -172,24 +194,22 @@ public class WorkoutDAO {
     public void deleteAllForUser(String username) {
         Connection connection = DatabaseConnection.getInstance();
         String deleteExercises = """
-            DELETE FROM exercises WHERE workout_id IN (
-                SELECT w.id FROM workouts w JOIN users u ON u.id = w.user_id WHERE u.username = ?
-            )
-            """;
+        DELETE FROM exercises WHERE workout_id IN (
+            SELECT w.id FROM workouts w JOIN users u ON u.id = w.user_id WHERE u.username = ?
+        )
+        """;
         String deleteWorkouts = "DELETE FROM workouts WHERE user_id = (SELECT id FROM users WHERE username = ?)";
 
-        try (PreparedStatement statement = connection.prepareStatement(deleteExercises)) {
-            statement.setString(1, username);
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            System.err.println("Failed to delete exercises: " + e.getMessage());
-        }
-        try (PreparedStatement statement = connection.prepareStatement(deleteWorkouts)) {
-            statement.setString(1, username);
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            System.err.println("Failed to delete workouts: " + e.getMessage());
-        }
+        inTransaction(connection, "Failed to clear workout data", () -> {
+            try (PreparedStatement statement = connection.prepareStatement(deleteExercises)) {
+                statement.setString(1, username);
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(deleteWorkouts)) {
+                statement.setString(1, username);
+                statement.executeUpdate();
+            }
+        });
     }
 
     /** Adds the name column to a workouts table created before sessions could be named. */

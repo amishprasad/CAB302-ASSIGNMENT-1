@@ -1,5 +1,6 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.db.DataAccessException;
 import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.model.BodyPart;
 import com.kineticfitness.model.Exercise;
@@ -227,16 +228,24 @@ public class LogWorkoutView implements Page {
             showStatus(statusLabel, "No active user - log in before saving a workout.", true);
             return;
         }
-
         workout.setName(SessionNames.normalize(sessionNameField.getText()));
 
-        exerciseData.forEach(workout::addExercise);
-        user.addWorkout(workout);          // keep in-memory state consistent for this session
-        workoutDAO.save(user, workout);    // persist to SQLite
+        // Rebuild the exercise list on every attempt so a failed save followed by a retry
+        // can't leave the same exercises in the workout twice.
+                workout.getExercises().clear();
+                exerciseData.forEach(workout::addExercise);
 
-        isSaved[0] = true;
-        sessionNameField.setDisable(true);
-        showStatus(statusLabel, "Workout session saved.", false);
+                try {
+                    workoutDAO.save(user, workout);   // throws if anything fails; the DAO rolls back
+                } catch (DataAccessException ex) {
+                    showStatus(statusLabel, "Could not save workout: " + ex.getMessage(), true);
+                    return;                           // isSaved stays false, so the user can retry
+                }
+
+                user.addWorkout(workout);             // only after the database accepted it
+                isSaved[0] = true;
+                sessionNameField.setDisable(true);
+                showStatus(statusLabel, "Workout session saved.", false);
     }
 
     private void showStatus(Label statusLabel, String message, boolean isError) {

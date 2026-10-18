@@ -1,5 +1,6 @@
 package com.kineticfitness.db;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.kineticfitness.model.BodyPart;
 import com.kineticfitness.model.Exercise;
 import com.kineticfitness.model.FitnessLevel;
@@ -125,11 +126,12 @@ class WorkoutDAOTest {
     }
 
     @Test
-    @DisplayName("saving for a user who has no account stores nothing")
+    @DisplayName("saving for a user who has no account fails and stores nothing")
     void savingForAnUnknownUserStoresNothing() {
         User ghost = new User("ghost", FitnessLevel.BEGINNER, 40, 175, 80);
+        Workout ghostDay = workout(DATE, "Ghost Day", new Exercise("Squat", 5, 5, BodyPart.LEGS));
 
-        workoutDAO.save(ghost, workout(DATE, "Ghost Day", new Exercise("Squat", 5, 5, BodyPart.LEGS)));
+        assertThrows(DataAccessException.class, () -> workoutDAO.save(ghost, ghostDay));
 
         assertTrue(workoutDAO.findAllByUsername("ghost").isEmpty());
     }
@@ -278,9 +280,11 @@ class WorkoutDAOTest {
     @Test
     @DisplayName("if an exercise cannot be saved, the workout is not saved either")
     void saveRollsBackWhenAnExerciseFails() {
-        workoutDAO.save(testUser, workout(DATE, "Doomed",
+        Workout doomed = workout(DATE, "Doomed",
                 new Exercise("Bench Press", 4, 8, BodyPart.CHEST),
-                new Exercise(null, 3, 10, BodyPart.CHEST)));   // exercises.name is NOT NULL
+                new Exercise(null, 3, 10, BodyPart.CHEST));   // exercises.name is NOT NULL
+
+        assertThrows(DataAccessException.class, () -> workoutDAO.save(testUser, doomed));
 
         assertTrue(workoutDAO.findAllByUsername("testuser").isEmpty());
     }
