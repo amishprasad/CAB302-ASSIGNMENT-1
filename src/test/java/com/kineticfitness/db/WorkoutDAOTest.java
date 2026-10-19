@@ -197,9 +197,7 @@ class WorkoutDAOTest {
     void deletingAllForAUserClearsEveryWorkoutTheyHave() {
         savePushDay();
         workoutDAO.save(testUser, workout(DATE.plusDays(1), "Pull Day", new Exercise("Row", 4, 8, BodyPart.BACK)));
-
         workoutDAO.deleteAllForUser("testuser");
-
         assertTrue(workoutDAO.findAllByUsername("testuser").isEmpty());
     }
 
