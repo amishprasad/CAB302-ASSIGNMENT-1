@@ -24,6 +24,15 @@ jobs:
       - name: Build and test
         run: mvn -B clean verify
 
+      - name: Generate Javadoc
+        run: mvn -B javadoc:javadoc
+
+      - name: Upload Javadoc
+        uses: actions/upload-artifact@v4
+        with:
+          name: javadoc
+          path: target/site/apidocs/
+
       - name: Upload build output
         if: always()
         uses: actions/upload-artifact@v4
