@@ -167,8 +167,7 @@ public class GoalsView implements Page {
         VBox targetWeightBlock = sectionBlock("Target Weight", "Your goal weight (kg)", targetWeightField);
 
         ComboBox<Integer> durationBox = new ComboBox<>();
-        final int maxWeeklyHours = 35;
-        for (int hours = 1; hours <= maxWeeklyHours; hours++) {
+        for (int hours = 1; hours <= GoalValidator.MAX_WEEKLY_HOURS; hours++)  {
             durationBox.getItems().add(hours * 60);
         }
         durationBox.setVisibleRowCount(10);
