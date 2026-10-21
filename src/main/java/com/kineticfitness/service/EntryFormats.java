@@ -66,20 +66,28 @@ public final class EntryFormats {
                 || !date && next.indexOf(':') == 1) {
             return new Edit(next, caret);
         }
-        int digitCaret = (int) next.substring(0, Math.min(caret, next.length())).chars()
-                .filter(Character::isDigit).count();
+        int digitCaret = countDigitsBefore(next, caret);
         String formatted = mask(next, date);
         if (replacement.isEmpty()) {
             while (formatted.endsWith(String.valueOf(separator))) {
                 formatted = formatted.substring(0, formatted.length() - 1);
             }
         }
+        return new Edit(formatted, caretAfterDigits(formatted, digitCaret, separator));
+    }
+
+    private static int countDigitsBefore(String text, int caret) {
+        return (int) text.substring(0, Math.min(caret, text.length())).chars()
+                .filter(Character::isDigit).count();
+    }
+
+    private static int caretAfterDigits(String text, int digitCount, char separator) {
         int mapped = 0, digitsSeen = 0;
-        while (mapped < formatted.length() && digitsSeen < digitCaret) {
-            if (Character.isDigit(formatted.charAt(mapped))) digitsSeen++;
+        while (mapped < text.length() && digitsSeen < digitCount) {
+            if (Character.isDigit(text.charAt(mapped))) digitsSeen++;
             mapped++;
         }
-        if (mapped < formatted.length() && formatted.charAt(mapped) == separator) mapped++;
-        return new Edit(formatted, mapped);
+        if (mapped < text.length() && text.charAt(mapped) == separator) mapped++;
+        return mapped;
     }
 }
