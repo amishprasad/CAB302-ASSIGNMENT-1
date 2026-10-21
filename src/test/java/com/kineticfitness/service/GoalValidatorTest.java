@@ -74,6 +74,24 @@ class GoalValidatorTest {
         assertEquals("Choose how many workouts you want to do each week.", r.message());
     }
 
+    /**
+     * Written before the rule existed. The dropdown stops at 35 hours, but that is
+     * a control making a choice convenient, not a rule being enforced: the rule has
+     * to hold wherever a goal is built from.
+     */
+    @Test
+    void rejectsAWeeklyCommitmentAboveTheLimit() {
+        ValidationResult r = validate("70", 36 * 60, 3, LATER, true, true);
+        assertTrue(r.isInvalid(), "36 hours a week should be refused");
+        assertEquals("Weekly exercise duration must be 35 hours or less.", r.message());
+    }
+
+    @Test
+    void acceptsAWeeklyCommitmentAtTheLimit() {
+        assertTrue(validate("70", 35 * 60, 3, LATER, true, true).valid(),
+                "35 hours a week is the most the form offers, so it must be allowed");
+    }
+
     @Test
     void rejectsZeroOrNegativeWeeklyFigures() {
         assertTrue(validate("70", 0, 3, LATER, true, true).isInvalid());
