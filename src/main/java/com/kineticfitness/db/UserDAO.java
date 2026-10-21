@@ -5,13 +5,24 @@ import com.kineticfitness.model.User;
 import com.kineticfitness.util.PasswordUtil;
 
 import java.sql.*;
-
+/**
+ * Saves, loads and checks user accounts in the SQLite database.
+ *
+ * <p>Follows the DAO (Data Access Object) pattern: all SQL for the {@code users}
+ * table lives here, so the screens never touch the database directly.
+ * Passwords are always stored hashed via {@link PasswordUtil}.
+ */
 public class UserDAO {
 
     private static final String SELECT_COLUMNS =
             "username, fitness_level, age, height_cm, weight_kg, password, email, phone_number";
 
-
+    /**
+     * Saves a user, or updates their fitness level, age, height and weight
+     * if the username already exists.
+     *
+     * @param user the user to save
+     */
     public void save(User user) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = """
@@ -37,8 +48,14 @@ public class UserDAO {
             System.err.println("Failed to save user: " + e.getMessage());
         }
     }
+    /**
+     * Changes a signed-in user's password. Used by the Settings page.
+     *
+     * @param username          the user whose password is changing
+     * @param newHashedPassword the new password, already hashed
+     * @return true if a user was updated, false otherwise
+     */
 
-    /** Used by the Settings page to change a signed-in user's password. */
     public boolean updatePassword(String username, String newHashedPassword) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "UPDATE users SET password = ? WHERE username = ?";
@@ -51,14 +68,18 @@ public class UserDAO {
             return false;
         }
     }
-
     /**
      * Creates a brand-new account for the register page. The raw password is hashed
      * (see {@link PasswordUtil}) before it ever reaches the database.
      *
+     * @param username    the new username
+     * @param rawPassword the password as typed by the user
+     * @param email       the user's email address
+     * @param phoneNumber the user's phone number
      * @return the newly created user, or {@code null} if the username, email or phone
      *         number is already taken, or the insert otherwise fails.
      */
+
     public User register(String username, String rawPassword, String email, String phoneNumber) {
         if (usernameExists(username) || emailExists(email) || phoneExists(phoneNumber)) {
             return null;
@@ -83,6 +104,13 @@ public class UserDAO {
         }
         return new User(username, hashedPassword, email, phoneNumber);
     }
+    /**
+     * Checks login details against the stored password hash.
+     *
+     * @param usernameOrEmail the username or email entered on the login screen
+     * @param rawPassword     the password as typed by the user
+     * @return the matching user if the password is correct, otherwise {@code null}
+     */
 
 
     public User authenticate(String usernameOrEmail, String rawPassword) {
@@ -103,11 +131,22 @@ public class UserDAO {
         }
         return null;
     }
+    /**
+     * Checks whether a username is already taken.
+     *
+     * @param username the username to check
+     * @return true if it exists
+     */
 
     public boolean usernameExists(String username) {
         return exists("SELECT 1 FROM users WHERE username = ?", username);
     }
-
+    /**
+     * Checks whether an email is already registered.
+     *
+     * @param email the email to check
+     * @return true if it exists
+     */
     public boolean emailExists(String email) {
         return exists("SELECT 1 FROM users WHERE email = ?", email);
     }
@@ -115,7 +154,12 @@ public class UserDAO {
     public boolean phoneExists(String phoneNumber) {
         return exists("SELECT 1 FROM users WHERE phone_number = ?", phoneNumber);
     }
-
+    /**
+     * Checks whether a phone number is already registered.
+     *
+     * @param phoneNumber the phone number to check
+     * @return true if it exists
+     */
     private boolean exists(String sql, String value) {
         Connection connection = DatabaseConnection.getInstance();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -127,7 +171,12 @@ public class UserDAO {
             return false;
         }
     }
-
+    /**
+     * Loads a user by username.
+     *
+     * @param username the username to look up
+     * @return the user, or {@code null} if not found
+     */
     public User findByUsername(String username) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "SELECT " + SELECT_COLUMNS + " FROM users WHERE username = ?";
@@ -142,6 +191,11 @@ public class UserDAO {
         }
         return null;
     }
+    /**
+     * Loads the first user ever created.
+     *
+     * @return the first user, or {@code null} if there are no users
+     */
 
     public User findFirst() {
         Connection connection = DatabaseConnection.getInstance();
@@ -156,8 +210,13 @@ public class UserDAO {
         }
         return null;
     }
+    /**
+     * Returns the email stored on a user's account.
+     *
+     * @param username the user to look up
+     * @return the email, or {@code null} if not found
+     */
 
-    /** The email stored on a user's account, or null if not found. */
     public String getEmail(String username) {
         Connection connection = DatabaseConnection.getInstance();
         try (PreparedStatement statement = connection.prepareStatement(

@@ -36,6 +36,8 @@ public class ScheduleDAO {
      * upgrades in place instead of having to be deleted.
      *
      * <p>Called once per connection from {@link DatabaseConnection}.</p>
+     * @param connection the open database connection
+     * @throws SQLException if the table cannot be inspected or altered
      */
     static void migrate(Connection connection) throws SQLException {
         Set<String> existing = columnNames(connection, "scheduled_workouts");
@@ -115,7 +117,8 @@ public class ScheduleDAO {
 
     /**
      * Saves a new workout for the given user.
-     *
+     * @param username the user the workout belongs to
+     * @param workout  the workout to schedule
      * @return the same workout carrying the id the database assigned, or the
      *         original unsaved instance if the insert failed
      */
@@ -156,6 +159,9 @@ public class ScheduleDAO {
      * <p>Rows written before dates were stored in ISO form are read with
      * {@link ScheduleValidator#parseDate(String)}; anything still unreadable is
      * skipped rather than crashing the screen.</p>
+     *
+     * @param username the user whose schedule to load
+     * @return the user's scheduled workouts, or an empty list if none or if loading fails
      */
     public List<ScheduledWorkout> findForUser(String username) {
         List<ScheduledWorkout> results = new ArrayList<>();
@@ -184,7 +190,10 @@ public class ScheduleDAO {
         return results;
     }
 
-    /** Only the workouts still waiting to be done. */
+    /** Only the workouts still waiting to be done.
+     * @param username the user whose schedule to load
+     * @return the user's open scheduled workouts, soonest first
+     */
     public List<ScheduledWorkout> findOpenForUser(String username) {
         List<ScheduledWorkout> open = new ArrayList<>();
         for (ScheduledWorkout workout : findForUser(username)) {
@@ -195,7 +204,10 @@ public class ScheduleDAO {
         return open;
     }
 
-    /** Marks a workout completed, skipped, or back to scheduled. */
+    /** Marks a workout completed, skipped, or back to scheduled.
+     * @param id     the id of the scheduled workout
+     * @param status the new status
+     */
     public void updateStatus(int id, ScheduleStatus status) {
         Connection connection = DatabaseConnection.getInstance();
         try (PreparedStatement statement = connection.prepareStatement(
@@ -208,7 +220,11 @@ public class ScheduleDAO {
         }
     }
 
-    /** Moves a workout to a new date and time and reopens it. */
+    /** Moves a workout to a new date and time and reopens it.
+     * @param id           the id of the scheduled workout
+     * @param newDate      the new date
+     * @param newStartTime the new start time
+     */
     public void reschedule(int id, LocalDate newDate, LocalTime newStartTime) {
         Connection connection = DatabaseConnection.getInstance();
         try (PreparedStatement statement = connection.prepareStatement(
@@ -223,7 +239,12 @@ public class ScheduleDAO {
         }
     }
 
-    /** Changes how far ahead the user is reminded, or switches the reminder off with 0. */
+    /** Changes how far ahead the user is reminded, or switches the reminder off with 0.
+     * @param id                  the id of the scheduled workout
+     * @param reminderLeadMinutes minutes before the start time to remind; 0 turns it off
+     * @throws IllegalArgumentException if the id or minutes are invalid, or the workout no longer exists
+     * @throws IllegalStateException    if the reminder cannot be saved
+     */
     public void updateReminderLead(int id, int reminderLeadMinutes) {
         if (id <= 0 || reminderLeadMinutes < 0) {
             throw new IllegalArgumentException("Invalid workout or reminder time.");
@@ -241,7 +262,8 @@ public class ScheduleDAO {
         }
     }
 
-    /** Removes a workout from the schedule entirely. */
+    /** Removes a workout from the schedule entirely.
+     @param id the id of the scheduled workout to delete */
     public void delete(int id) {
         Connection connection = DatabaseConnection.getInstance();
         try (PreparedStatement statement = connection.prepareStatement(
@@ -257,6 +279,7 @@ public class ScheduleDAO {
      * Removes every scheduled workout belonging to this user, for the Settings page's
      * "Clear All Data". Other users' schedules and the account itself are untouched.
      * An unknown username matches nothing, so it is a harmless no-op.
+     @param username the user whose schedule to clear
      */
     public void deleteAllForUser(String username) {
         Connection connection = DatabaseConnection.getInstance();

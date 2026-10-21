@@ -4,25 +4,50 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-
+/**
+ * Provides the single shared connection to the app's SQLite database.
+ *
+ * <p>Uses the Singleton pattern: the connection is created the first time
+ * {@link #getInstance()} is called and reused after that, so every DAO talks to
+ * the same database. On first connection it also creates any missing tables and
+ * upgrades older tables in place.
+ *
+ * <p>Tests can call {@link #configure(String)} to use an in-memory database instead
+ * of the real file.
+ */
 public class DatabaseConnection {
+
 
     private static String url = "jdbc:sqlite:kineticfitness.db";
     private static Connection instance = null;
-
-    /** For tests: point at a different database (e.g. "jdbc:sqlite::memory:"). Call before getInstance(). */
+    /**
+     * Points the app at a different database, closing any current connection.
+     * Used by tests, e.g. with {@code "jdbc:sqlite::memory:"}. Call before {@link #getInstance()}.
+     *
+     * @param customUrl the JDBC URL of the database to use
+     */
     public static void configure(String customUrl) {
         reset();
         url = customUrl;
     }
+    /**
+     * Closes the current connection so the next {@link #getInstance()} call opens a fresh one.
+     * Does nothing if no connection is open.
+     */
 
-    /** Closes the current connection so the next getInstance() opens a fresh one. */
     public static void reset() {
         if (instance != null) {
             try { instance.close(); } catch (SQLException ignored) {}
             instance = null;
         }
     }
+
+    /**
+     * Returns the shared database connection, opening it on first use.
+     * The first call also creates any missing tables and migrates older ones.
+     *
+     * @return the shared connection, or {@code null} if the database could not be opened
+     */
 
     public static Connection getInstance() {
         if (instance == null) {
@@ -37,6 +62,12 @@ public class DatabaseConnection {
         }
         return instance;
     }
+    /**
+     * Creates every table the app needs, if it does not already exist.
+     *
+     * @param connection the open database connection
+     * @throws SQLException if a table cannot be created
+     */
 
     private static void createTables(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
