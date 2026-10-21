@@ -1,5 +1,6 @@
 package com.kineticfitness.service;
 
+import com.kineticfitness.model.FitnessGoal;
 import com.kineticfitness.model.FitnessLevel;
 import com.kineticfitness.model.GoalType;
 import org.junit.jupiter.api.Test;
@@ -21,8 +22,14 @@ class GoalValidatorTest {
 
     private ValidationResult validate(String weight, Integer minutes, Integer workouts,
                                       LocalDate target, boolean types, boolean days) {
+        return validate(weight, minutes, workouts, target, types, days, "");
+    }
+
+    private ValidationResult validate(String weight, Integer minutes, Integer workouts,
+                                      LocalDate target, boolean types, boolean days,
+                                      String notes) {
         return GoalValidator.validate(GoalType.LOSE_WEIGHT, weight, minutes, workouts,
-                target, FitnessLevel.BEGINNER, types, days, TODAY);
+                target, FitnessLevel.BEGINNER, types, days, notes, TODAY);
     }
 
     @Test
@@ -89,6 +96,34 @@ class GoalValidatorTest {
     void requiresAtLeastOneWorkoutTypeAndOneDay() {
         assertTrue(validate("70", LATER, false, true).isInvalid());
         assertTrue(validate("70", LATER, true, false).isInvalid());
+    }
+
+    @Test
+    void acceptsAGoalWithNoNote() {
+        assertTrue(validate("70", 150, 3, LATER, true, true, "").valid());
+        assertTrue(validate("70", 150, 3, LATER, true, true, "   ").valid());
+        assertTrue(validate("70", 150, 3, LATER, true, true, null).valid());
+    }
+
+    @Test
+    void acceptsANoteUpToTheLimit() {
+        String note = "x".repeat(FitnessGoal.MAX_NOTES_LENGTH);
+        assertTrue(validate("70", 150, 3, LATER, true, true, note).valid());
+    }
+
+    @Test
+    void rejectsANoteOverTheLimit() {
+        String note = "x".repeat(FitnessGoal.MAX_NOTES_LENGTH + 1);
+        ValidationResult r = validate("70", 150, 3, LATER, true, true, note);
+        assertTrue(r.isInvalid());
+        assertEquals("Your note must be " + FitnessGoal.MAX_NOTES_LENGTH
+                + " characters or fewer.", r.message());
+    }
+
+    @Test
+    void measuresTheNoteAfterTrimmingIt() {
+        String note = "   " + "x".repeat(FitnessGoal.MAX_NOTES_LENGTH) + "   ";
+        assertTrue(validate("70", 150, 3, LATER, true, true, note).valid());
     }
 
     @Test

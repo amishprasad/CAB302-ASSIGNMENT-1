@@ -52,7 +52,8 @@ public final class ProfileGoalMapper {
                     store.preferredWorkoutDays,
                     store.goalStartDate,
                     store.goalTargetDate,
-                    store.goalAchievedDate));
+                    store.goalAchievedDate,
+                    store.goalNotes));
         } catch (IllegalArgumentException e) {
             // Unknown enum name, or stored dates that no longer satisfy the goal's
             // own invariants. Treat it as "no goal" rather than crashing the screen.
@@ -77,6 +78,7 @@ public final class ProfileGoalMapper {
         store.goalStartDate = goal.getStartDate();
         store.goalTargetDate = goal.getTargetDate();
         store.goalAchievedDate = goal.getAchievedDate();
+        store.goalNotes = goal.getNotes();
     }
 
     /** Removes the goal from the store, leaving the personal details untouched. */
@@ -91,6 +93,7 @@ public final class ProfileGoalMapper {
         store.goalStartDate = null;
         store.goalTargetDate = null;
         store.goalAchievedDate = null;
+        store.goalNotes = "";
     }
 
     /**

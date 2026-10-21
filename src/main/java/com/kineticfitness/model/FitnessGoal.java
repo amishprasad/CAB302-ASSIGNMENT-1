@@ -36,12 +36,12 @@ public final class FitnessGoal {
     private final LocalDate startDate;
     private final LocalDate targetDate;
     private final LocalDate achievedDate;
+    private final String notes;
 
-    /**
-     * @param achievedDate the day the goal was completed, or null while it is still active
-     * @throws IllegalArgumentException if the target date is not after the start date,
-     *                                  or the target weight is not positive
-     */
+    /** Longest note a goal will carry. The form refuses anything longer. */
+    public static final int MAX_NOTES_LENGTH = 500;
+
+    /** Creates a goal with no note attached. */
     public FitnessGoal(GoalType type,
                        double targetWeightKg,
                        int weeklyWorkouts,
@@ -52,6 +52,29 @@ public final class FitnessGoal {
                        LocalDate startDate,
                        LocalDate targetDate,
                        LocalDate achievedDate) {
+        this(type, targetWeightKg, weeklyWorkouts, weeklyMinutes, experienceLevel,
+                preferredWorkoutTypes, preferredWorkoutDays, startDate, targetDate,
+                achievedDate, "");
+    }
+
+    /**
+     * @param achievedDate the day the goal was completed, or null while it is still active
+     * @param notes        the user's own note about this goal; null is stored as empty
+     * @throws IllegalArgumentException if the target date is not after the start date,
+     *                                  the target weight is not positive, or the note is
+     *                                  longer than {@link #MAX_NOTES_LENGTH}
+     */
+    public FitnessGoal(GoalType type,
+                       double targetWeightKg,
+                       int weeklyWorkouts,
+                       int weeklyMinutes,
+                       FitnessLevel experienceLevel,
+                       Set<String> preferredWorkoutTypes,
+                       Set<String> preferredWorkoutDays,
+                       LocalDate startDate,
+                       LocalDate targetDate,
+                       LocalDate achievedDate,
+                       String notes) {
 
         this.type = Objects.requireNonNull(type, "goal type");
         this.experienceLevel = Objects.requireNonNull(experienceLevel, "experience level");
@@ -65,12 +88,27 @@ public final class FitnessGoal {
             throw new IllegalArgumentException("target date must be after the start date");
         }
 
+        this.notes = normaliseNotes(notes);
+
         this.targetWeightKg = targetWeightKg;
         this.weeklyWorkouts = weeklyWorkouts;
         this.weeklyMinutes = weeklyMinutes;
         this.achievedDate = achievedDate;
         this.preferredWorkoutTypes = unmodifiableCopy(preferredWorkoutTypes);
         this.preferredWorkoutDays = unmodifiableCopy(preferredWorkoutDays);
+    }
+
+    /**
+     * Trims the note and rejects one that is too long. A null note is simply an
+     * absent one, so it becomes empty rather than an error.
+     */
+    private static String normaliseNotes(String source) {
+        String trimmed = source == null ? "" : source.trim();
+        if (trimmed.length() > MAX_NOTES_LENGTH) {
+            throw new IllegalArgumentException(
+                    "note must be " + MAX_NOTES_LENGTH + " characters or fewer");
+        }
+        return trimmed;
     }
 
     private static Set<String> unmodifiableCopy(Set<String> source) {
@@ -80,6 +118,11 @@ public final class FitnessGoal {
     }
 
     // ---------- rules ----------
+
+    /** Whether the user wrote a note for this goal. */
+    public boolean hasNotes() {
+        return !notes.isEmpty();
+    }
 
     /** Whether this goal has already been completed. */
     public boolean isAchieved() {
@@ -105,7 +148,17 @@ public final class FitnessGoal {
         }
         return new FitnessGoal(type, targetWeightKg, weeklyWorkouts, weeklyMinutes,
                 experienceLevel, preferredWorkoutTypes, preferredWorkoutDays,
-                startDate, targetDate, Objects.requireNonNull(date, "achieved date"));
+                startDate, targetDate, Objects.requireNonNull(date, "achieved date"), notes);
+    }
+
+    /**
+     * A copy of this goal carrying a different note. Editing the note never
+     * changes the goal itself, the same way completing it does not.
+     */
+    public FitnessGoal withNotes(String newNotes) {
+        return new FitnessGoal(type, targetWeightKg, weeklyWorkouts, weeklyMinutes,
+                experienceLevel, preferredWorkoutTypes, preferredWorkoutDays,
+                startDate, targetDate, achievedDate, newNotes);
     }
 
     /** Whole days from {@code today} until the target date; negative once it has passed. */
@@ -148,6 +201,8 @@ public final class FitnessGoal {
     public LocalDate getStartDate() { return startDate; }
     public LocalDate getTargetDate() { return targetDate; }
     public LocalDate getAchievedDate() { return achievedDate; }
+    /** The user's own note, or an empty string when they wrote none. Never null. */
+    public String getNotes() { return notes; }
 
     @Override
     public String toString() {

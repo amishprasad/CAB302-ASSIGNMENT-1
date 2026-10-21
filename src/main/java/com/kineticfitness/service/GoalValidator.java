@@ -1,5 +1,6 @@
 package com.kineticfitness.service;
 
+import com.kineticfitness.model.FitnessGoal;
 import com.kineticfitness.model.FitnessLevel;
 import com.kineticfitness.model.GoalType;
 
@@ -31,6 +32,7 @@ public final class GoalValidator {
      * @param targetWeightText the raw text typed into the target weight field
      * @param weeklyMinutes    the chosen weekly exercise duration, or null if unchosen
      * @param weeklyWorkouts   the chosen number of workouts per week, or null if unchosen
+     * @param notes            the user's own note about the goal; optional, so blank passes
      * @param startDate        the goal's existing start date, or today for a new goal
      * @return {@link ValidationResult#ok()} when every rule passes
      */
@@ -42,6 +44,7 @@ public final class GoalValidator {
                                             FitnessLevel experienceLevel,
                                             boolean anyWorkoutTypeSelected,
                                             boolean anyWorkoutDaySelected,
+                                            String notes,
                                             LocalDate startDate) {
 
         if (type == null || experienceLevel == null
@@ -88,6 +91,13 @@ public final class GoalValidator {
         if (!anyWorkoutTypeSelected || !anyWorkoutDaySelected) {
             return ValidationResult.error(
                     "Pick at least one workout type and one workout day.");
+        }
+
+        // The note is optional, so a blank one is fine. Only its length is a rule,
+        // and the limit belongs to FitnessGoal, which is what has to store it.
+        if (notes != null && notes.trim().length() > FitnessGoal.MAX_NOTES_LENGTH) {
+            return ValidationResult.error("Your note must be "
+                    + FitnessGoal.MAX_NOTES_LENGTH + " characters or fewer.");
         }
 
         return ValidationResult.ok();
