@@ -4,6 +4,8 @@ import com.kineticfitness.db.DataAccessException;
 import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.model.BodyPart;
 import com.kineticfitness.model.Exercise;
+import com.kineticfitness.model.ExerciseCatalog;
+import com.kineticfitness.service.InputSuggestions.Suggestion;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
@@ -25,6 +27,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 
 
@@ -48,6 +52,31 @@ public class LogWorkoutView implements Page {
         TextField repsField = new TextField();
         ComboBox<BodyPart> bodyPartCombo = new ComboBox<>();
         Label statusLabel = new Label();
+        List<Suggestion> exercises = new ArrayList<>(ExerciseCatalog.all().stream()
+                .map(e -> new Suggestion(e.name(), e.bodyPart())).toList());
+        List<Suggestion> sessions = new ArrayList<>();
+        for (String name : List.of("Push Day", "Pull Day", "Leg Day", "Chest Workout", "Full Body", "Cardio")) {
+            sessions.add(new Suggestion(name, ""));
+        }
+        if (UserSession.isLoggedIn()) {
+            try {
+                for (Workout previous : workoutDAO.findAllByUsername(UserSession.getCurrentUser().getUsername())) {
+                    sessions.add(new Suggestion(previous.getName(), ""));
+                    for (Exercise e : previous.getExercises()) {
+                        exercises.add(new Suggestion(e.getName(), String.valueOf(e.getBodyPart())));
+                    }
+                }
+            } catch (DataAccessException e) {
+                showStatus(statusLabel, "Previous names could not be loaded. Exercise library suggestions are available.", true);
+            }
+        }
+        InputAssistance.suggest(sessionNameField, () -> sessions);
+        InputAssistance.suggest(nameField, () -> {
+            List<Suggestion> options = new ArrayList<>(exercises);
+            exerciseData.forEach(e -> options.add(new Suggestion(e.getName(), String.valueOf(e.getBodyPart()))));
+            return options;
+        }, selected -> ExerciseCatalog.all().stream().filter(e -> e.name().equals(selected)).findFirst()
+                .ifPresent(e -> bodyPartCombo.setValue(BodyPart.valueOf(e.bodyPart().toUpperCase(java.util.Locale.ROOT)))));
         boolean[] isSaved = { false }; // one-element array so the save handler lambda can mutate it
 
         HBox content = new HBox(20);
@@ -135,7 +164,7 @@ public class LogWorkoutView implements Page {
 
         Label nameLabel = new Label("Exercise Name");
         nameLabel.getStyleClass().add("field-label");
-        nameField.setPromptText("e.g. Overhead Press");
+        nameField.setPromptText("Type an exercise or body part");
 
         Label setsLabel = new Label("Sets");
         setsLabel.getStyleClass().add("field-label");
