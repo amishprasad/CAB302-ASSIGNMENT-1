@@ -21,6 +21,8 @@ public final class GoalValidator {
 
     /** Heaviest target the form will accept, in kilograms. */
     public static final double MAX_TARGET_WEIGHT_KG = 400;
+    /** Most exercise the form will accept in one week, in hours. */
+    public static final int MAX_WEEKLY_HOURS = 35;
 
     private GoalValidator() {
     }
@@ -73,6 +75,10 @@ public final class GoalValidator {
         }
         if (weeklyMinutes <= 0) {
             return ValidationResult.error("Weekly exercise duration must be more than zero.");
+        }
+        if (weeklyMinutes > MAX_WEEKLY_HOURS * 60) {
+            return ValidationResult.error(
+                    "Weekly exercise duration must be " + MAX_WEEKLY_HOURS + " hours or less.");
         }
         if (weeklyWorkouts == null) {
             return ValidationResult.error("Choose how many workouts you want to do each week.");
