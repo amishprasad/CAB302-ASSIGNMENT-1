@@ -13,7 +13,7 @@ class EntryFormatsTest {
                 EntryFormats.edit("", 0, 0, "1830", false));
     }
     @Test void forwardDeleteOverASeparatorRemovesTheNextDigit() {
-        assertEquals(new EntryFormats.Edit("20/12/026", 3),
+        assertEquals(new EntryFormats.Edit("20/02/026", 3),
                 EntryFormats.edit("20/10/2026", 2, 3, "", true, 2));
     }
     @Test void insertsDateSeparatorsWhileTypingAndPasting() {
