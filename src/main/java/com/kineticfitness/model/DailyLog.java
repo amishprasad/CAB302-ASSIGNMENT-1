@@ -19,6 +19,9 @@ public class DailyLog {
     public List<Meal> getMeals() { return meals; }
     public void addMeal(Meal meal) { meals.add(meal); }
 
+    /** Removes a logged meal. Returns true if it was in the log. */
+    public boolean removeMeal(Meal meal) { return meals.remove(meal); }
+
     public double getWaterIntakeMl() { return waterIntakeMl; }
     public void addWater(double ml) { this.waterIntakeMl += ml; }
 
