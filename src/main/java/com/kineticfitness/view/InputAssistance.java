@@ -47,10 +47,11 @@ public final class InputAssistance {
             }
             @Override public LocalDate fromString(String text) {
                 if (text == null || text.isBlank()) return null;
-                // DatePicker commits automatically on blur. Preserve its
-                // current value for an invalid draft instead of throwing on
-                // the UI thread; dateValue still rejects the user's draft.
-                return EntryFormats.parseDate(text).orElse(picker.getValue());
+                // Clear the committed value for an invalid draft. Otherwise
+                // opening and cancelling the calendar can restore an old date.
+                LocalDate parsed = EntryFormats.parseDate(text).orElse(null);
+                if (parsed == null) picker.getProperties().put(DATE_DRAFT, text);
+                return parsed;
             }
         });
         mask(picker.getEditor(), true);
@@ -59,8 +60,11 @@ public final class InputAssistance {
         picker.getEditor().textProperty().addListener((o, before, after) -> {
             if (picker.getEditor().isFocused()) picker.getProperties().put(DATE_DRAFT, after);
         });
-        picker.valueProperty().addListener((o, before, after) -> picker.getProperties().remove(DATE_DRAFT));
-        picker.setOnShowing(e -> picker.getProperties().remove(DATE_DRAFT));
+        picker.valueProperty().addListener((o, before, after) -> {
+            // An invalid automatic commit must retain its draft for validation.
+            // A deliberate valid calendar/programmatic selection replaces it.
+            if (after != null) picker.getProperties().remove(DATE_DRAFT);
+        });
         picker.getEditor().setText(picker.getConverter().toString(picker.getValue()));
         picker.getEditor().setAccessibleHelp("Type day, month and year. Slashes are inserted automatically, or use the calendar.");
     }
