@@ -41,6 +41,15 @@ public class MealLogView implements Page {
 
         TextField nameField = new TextField();
         nameField.setPromptText("Meal name");
+        InputAssistance.suggest(nameField, () -> {
+            java.util.List<com.kineticfitness.service.InputSuggestions.Suggestion> names = new java.util.ArrayList<>();
+            for (String name : java.util.List.of("Breakfast", "Lunch", "Dinner", "Snack")) {
+                names.add(new com.kineticfitness.service.InputSuggestions.Suggestion(name, ""));
+            }
+            dailyLog.getMeals().forEach(meal -> names.add(
+                    new com.kineticfitness.service.InputSuggestions.Suggestion(meal.getName(), "")));
+            return names;
+        });
         TextField caloriesField = new TextField();
         caloriesField.setPromptText("Calories");
         TextField proteinField = new TextField();

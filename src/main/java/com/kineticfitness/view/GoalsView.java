@@ -210,8 +210,9 @@ public class GoalsView implements Page {
         VBox weeklyWorkoutBlock = sectionBlock("Weekly Workout Goal", "How many workouts per week?", weeklyWorkoutBox);
 
         DatePicker targetDatePicker = new DatePicker();
+        InputAssistance.date(targetDatePicker);
         targetDatePicker.setValue(hasGoals ? store.goalTargetDate : null);
-        targetDatePicker.setPromptText("Choose a date");
+        targetDatePicker.setPromptText("DD/MM/YYYY");
         targetDatePicker.setMaxWidth(Double.MAX_VALUE);
         targetDatePicker.setPrefHeight(38);
         VBox targetDateBlock = sectionBlock("Target Date", "When do you want to reach this goal?", targetDatePicker);
@@ -299,7 +300,7 @@ public class GoalsView implements Page {
                     targetWeightField.getText(),
                     durationBox.getValue(),
                     weeklyWorkoutBox.getValue(),
-                    targetDatePicker.getValue(),
+                    InputAssistance.dateValue(targetDatePicker),
                     experience,
                     hasSelection(typesRow),
                     hasSelection(daysRow),
@@ -322,7 +323,7 @@ public class GoalsView implements Page {
                     selectedLabels(typesRow),
                     selectedLabels(daysRow),
                     startDate,
-                    targetDatePicker.getValue(),
+                    InputAssistance.dateValue(targetDatePicker),
                     null,
                     notesArea.getText());
 

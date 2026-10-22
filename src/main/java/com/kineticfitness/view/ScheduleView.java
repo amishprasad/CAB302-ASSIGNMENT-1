@@ -161,14 +161,29 @@ public class ScheduleView implements Page {
 
         configureEditable(nameBox, "Leg Hypertrophy Focus", 260);
         nameBox.getItems().setAll(WORKOUT_TYPES);
+        List<com.kineticfitness.service.InputSuggestions.Suggestion> names = new ArrayList<>();
+        for (String name : WORKOUT_TYPES) {
+            names.add(new com.kineticfitness.service.InputSuggestions.Suggestion(name, ""));
+        }
+        if (UserSession.isLoggedIn()) {
+            try {
+                scheduleDAO.findForUser(currentUsername()).forEach(workout -> names.add(
+                        new com.kineticfitness.service.InputSuggestions.Suggestion(workout.getName(), "")));
+            } catch (com.kineticfitness.db.DataAccessException ignored) {
+                // Built-in names remain usable when history is unavailable.
+            }
+        }
+        InputAssistance.suggest(nameBox.getEditor(), () -> names);
 
         datePicker.setPromptText("Pick a date");
         datePicker.setPrefWidth(160);
         datePicker.setValue(LocalDate.now());
+        InputAssistance.date(datePicker);
 
         configureEditable(timeBox, "18:30 or 6:30 PM", 150);
         timeBox.getItems().setAll(TIME_SLOTS);
         timeBox.setVisibleRowCount(10);
+        InputAssistance.time(timeBox.getEditor());
 
         configureEditable(durationBox, "75", 130);
         durationBox.getItems().setAll(DURATION_CHOICES);
@@ -250,7 +265,7 @@ public class ScheduleView implements Page {
         String durationText = textOf(durationBox);
 
         ValidationResult result = ScheduleValidator.validate(
-                name, datePicker.getValue(), timeText, durationText, LocalDateTime.now());
+                name, InputAssistance.dateValue(datePicker), timeText, durationText, LocalDateTime.now());
 
         if (result.isInvalid()) {
             showError(result.message());
@@ -262,7 +277,7 @@ public class ScheduleView implements Page {
         int reminderLead = reminderBox.getValue() == null ? ScheduledWorkout.NO_REMINDER : reminderBox.getValue();
 
         ScheduledWorkout candidate =
-                new ScheduledWorkout(name, datePicker.getValue(), startTime, minutes, reminderLead);
+                new ScheduledWorkout(name, InputAssistance.dateValue(datePicker), startTime, minutes, reminderLead);
 
         // An overlap is a warning, not a rule - a user may genuinely want two
         // sessions in the same slot, so they get the final say.
@@ -500,10 +515,12 @@ public class ScheduleView implements Page {
 
     private Optional<LocalDateTime> askForNewSlot(ScheduledWorkout workout) {
         DatePicker newDate = new DatePicker(workout.getDate());
+        InputAssistance.date(newDate);
         newDate.setPrefWidth(180);
 
         ComboBox<String> newTime = new ComboBox<>();
         configureEditable(newTime, "18:30 or 6:30 PM", 180);
+        InputAssistance.time(newTime.getEditor());
         newTime.getItems().setAll(TIME_SLOTS);
         newTime.setVisibleRowCount(10);
         newTime.getEditor().setText(workout.getStartTime().format(TIME_LABEL));
@@ -532,7 +549,7 @@ public class ScheduleView implements Page {
         Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
         okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
             ValidationResult result = ScheduleValidator.validate(
-                    workout.getName(), newDate.getValue(), textOf(newTime),
+                    workout.getName(), InputAssistance.dateValue(newDate), textOf(newTime),
                     String.valueOf(workout.getDurationMinutes()), LocalDateTime.now());
             if (result.isInvalid()) {
                 dialogError.setText(result.message());
@@ -544,7 +561,7 @@ public class ScheduleView implements Page {
             return Optional.empty();
         }
         return ScheduleValidator.parseTime(textOf(newTime))
-                .map(time -> LocalDateTime.of(newDate.getValue(), time));
+                .map(time -> LocalDateTime.of(InputAssistance.dateValue(newDate), time));
     }
 
     // ---- small helpers ----------------------------------------------------

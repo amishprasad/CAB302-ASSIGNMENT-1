@@ -90,7 +90,7 @@ public class ProfileDetailsView implements Page {
         FitnessLevel level = fitnessBox.getValue();
 
         ValidationResult result = ProfileValidator.validate(
-                nameField.getText(), emailField.getText(), gender, dobPicker.getValue(),
+                nameField.getText(), emailField.getText(), gender, InputAssistance.dateValue(dobPicker),
                 heightField.getText(), weightField.getText(), level, LocalDate.now());
 
         if (result.isInvalid()) {
@@ -101,7 +101,7 @@ public class ProfileDetailsView implements Page {
 
         return new PersonalDetails(
                 nameField.getText(), emailField.getText(), gender, photoPath,
-                dobPicker.getValue(),
+                InputAssistance.dateValue(dobPicker),
                 ProfileValidator.parseMeasurement(heightField.getText()).getAsDouble(),
                 ProfileValidator.parseMeasurement(weightField.getText()).getAsDouble(),
                 level);
@@ -784,6 +784,7 @@ public class ProfileDetailsView implements Page {
         genderBox.setPrefHeight(38);
 
         DatePicker dobPicker = new DatePicker(store.dateOfBirth);
+        InputAssistance.date(dobPicker);
         dobPicker.setPromptText("DD/MM/YYYY");
         dobPicker.setMaxWidth(Double.MAX_VALUE);
         dobPicker.setPrefHeight(38);
@@ -935,6 +936,7 @@ public class ProfileDetailsView implements Page {
         genderBox.setPrefHeight(38);
 
         DatePicker dobPicker = new DatePicker(store.dateOfBirth);
+        InputAssistance.date(dobPicker);
         dobPicker.setMaxWidth(Double.MAX_VALUE);
         dobPicker.setPrefHeight(38);
 
