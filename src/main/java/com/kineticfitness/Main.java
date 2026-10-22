@@ -5,6 +5,7 @@ import com.kineticfitness.db.ProfileDAO;
 import com.kineticfitness.db.ScheduleDAO;
 import com.kineticfitness.session.UserSession;
 import com.kineticfitness.db.PreferencesDAO;
+import com.kineticfitness.service.ReminderSettingsService;
 import com.kineticfitness.view.*;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -44,7 +45,11 @@ public class Main extends Application {
     }
 
     private void launchApp(Stage stage, String startLabel) {
-        new AppShell(stage)
+        AppShell shell = new AppShell(stage);
+        ScheduleDAO scheduleDAO = new ScheduleDAO();
+        ReminderSettingsService reminderSettings = new ReminderSettingsService(scheduleDAO);
+        reminderSettings.addListener(shell::reminderSettingsChanged);
+        shell
                 .add(new DashboardView())
                 .add(new ProfileDetailsView())
                 .add(new MealLogView())// ← was ProfilePage, renamed on main
@@ -52,7 +57,7 @@ public class Main extends Application {
                 .add(new WorkoutHistoryView())
                 .add(new ExerciseSelectionView())
                 .add(new GoalsView())
-                .add(new ScheduleView())
+                .add(new ScheduleView(scheduleDAO, reminderSettings))
                 .add(new ProgressAnalyticsView())
                 .add(new SettingsView())
                 .withReminders(Main::currentUserSchedule)

@@ -8,6 +8,7 @@ import com.kineticfitness.model.GoalType;
 import com.kineticfitness.service.GoalValidator;
 import com.kineticfitness.service.ProfileGoalMapper;
 import com.kineticfitness.service.ValidationResult;
+import com.kineticfitness.util.UnitConverter;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -806,9 +807,9 @@ public class GoalsView implements Page {
         return values.isEmpty() ? "—" : String.join(", ", values);
     }
 
+    /** A stored weight in kilograms, shown in whichever unit system the user chose in Settings. */
     private String formatWeight(double kg) {
-        if (kg <= 0) return "—";
-        return (kg == Math.rint(kg) ? String.valueOf((long) kg) : String.format("%.1f", kg)) + " kg";
+        return UnitConverter.formatWeight(kg, store.unitSystem);
     }
 
     private String formatDate(java.time.LocalDate date) {

@@ -1,0 +1,8 @@
+module:com.kineticfitness
+com.kineticfitness
+com.kineticfitness.db
+com.kineticfitness.model
+com.kineticfitness.service
+com.kineticfitness.session
+com.kineticfitness.util
+com.kineticfitness.view

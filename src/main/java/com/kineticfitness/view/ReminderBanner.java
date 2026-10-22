@@ -84,6 +84,11 @@ public class ReminderBanner {
         dismissed.clear();
     }
 
+    /** A changed reminder can appear again without restoring unrelated dismissals. */
+    public void clearDismissal(int workoutId) {
+        dismissed.remove(workoutId);
+    }
+
     private HBox buildRow(ScheduledWorkout workout, LocalDateTime now) {
         Label bell = new Label("⏰");
         bell.setStyle("-fx-font-size: 15px;");
