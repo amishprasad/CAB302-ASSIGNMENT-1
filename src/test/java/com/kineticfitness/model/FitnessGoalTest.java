@@ -22,6 +22,42 @@ class FitnessGoalTest {
     }
 
     @Test
+    void aGoalWithoutANoteHasAnEmptyOne() {
+        FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70);
+        assertEquals("", g.getNotes());
+        assertFalse(g.hasNotes());
+    }
+
+    @Test
+    void aNoteIsTrimmedAndKept() {
+        FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70).withNotes("  Run every morning.  ");
+        assertEquals("Run every morning.", g.getNotes());
+        assertTrue(g.hasNotes());
+    }
+
+    @Test
+    void aNoteOverTheLimitIsRejected() {
+        String tooLong = "x".repeat(FitnessGoal.MAX_NOTES_LENGTH + 1);
+        assertThrows(IllegalArgumentException.class,
+                () -> goal(GoalType.LOSE_WEIGHT, 70).withNotes(tooLong));
+    }
+
+    @Test
+    void changingTheNoteLeavesTheOriginalGoalAlone() {
+        FitnessGoal original = goal(GoalType.LOSE_WEIGHT, 70);
+        FitnessGoal annotated = original.withNotes("Half marathon in March.");
+        assertEquals("", original.getNotes());
+        assertEquals("Half marathon in March.", annotated.getNotes());
+        assertEquals(original.getTargetWeightKg(), annotated.getTargetWeightKg());
+    }
+
+    @Test
+    void completingAGoalKeepsItsNote() {
+        FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70).withNotes("For the wedding.");
+        assertEquals("For the wedding.", g.achievedOn(TARGET).getNotes());
+    }
+
+    @Test
     void loseWeightIsReachedAtOrBelowTarget() {
         FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70);
         assertTrue(g.isReachedBy(69.9));

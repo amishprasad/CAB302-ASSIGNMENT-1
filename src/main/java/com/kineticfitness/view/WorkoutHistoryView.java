@@ -1,11 +1,11 @@
 package com.kineticfitness.view;
 
 import com.kineticfitness.db.WorkoutDAO;
-import com.kineticfitness.model.BodyPart;
 import com.kineticfitness.model.Exercise;
 import com.kineticfitness.model.User;
 import com.kineticfitness.model.Workout;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.util.BodyPartFilter;
 import com.kineticfitness.util.SessionNames;
 import com.kineticfitness.util.WorkoutStats;
 import com.kineticfitness.util.WorkoutStats.DatedVolume;
@@ -46,7 +46,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class WorkoutHistoryView implements Page {
 
@@ -62,12 +61,9 @@ public class WorkoutHistoryView implements Page {
 
     /** How many of the most recent sessions the chart shows, so the bars stay readable. */
     private static final int CHART_SESSIONS = 8;
-    private static final String[] FILTERS = {
-            "All", "Chest", "Back", "Legs", "Arms", "Shoulders", "Core"
-    };
 
     private final List<Session> sessions = new ArrayList<>();
-    private String activeFilter = "All";
+    private BodyPartFilter activeFilter = BodyPartFilter.all();
     private BarChart<String, Number> chart;
     private VBox sessionList;
 
@@ -87,7 +83,7 @@ public class WorkoutHistoryView implements Page {
 
         sessions.clear();
         sessions.addAll(loadSessions());
-        activeFilter = "All";
+        activeFilter = BodyPartFilter.all();
 
         chart = buildChart();
         VBox chartCard = buildChartCard(chart);
@@ -129,7 +125,7 @@ public class WorkoutHistoryView implements Page {
                         exercise.getName(),
                         String.valueOf(exercise.getSets()),
                         String.valueOf(exercise.getReps()),
-                        bodyPartLabel(exercise.getBodyPart())));
+                        exercise.getBodyPart()));
             }
             if (!entries.isEmpty()) {
                 loaded.add(new Session(workout.getId(), workout.getName(),
@@ -139,21 +135,13 @@ public class WorkoutHistoryView implements Page {
         return loaded;
     }
 
-    private static String bodyPartLabel(BodyPart bodyPart) {
-        if (bodyPart == null) {
-            return "—";
-        }
-        String name = bodyPart.name();
-        return name.charAt(0) + name.substring(1).toLowerCase();
-    }
-
     private void refresh() {
         sessions.removeIf(s -> s.getEntries().isEmpty());
 
         List<Session> visible = new ArrayList<>();
         List<Entry> visibleEntries = new ArrayList<>();
         for (Session session : sessions) {
-            List<Entry> matching = filterByPart(session.getEntries(), activeFilter);
+            List<Entry> matching = activeFilter.apply(session.getEntries(), Entry::getBodyPart);
             if (!matching.isEmpty()) {
                 visible.add(session);
                 visibleEntries.addAll(matching);
@@ -201,18 +189,18 @@ public class WorkoutHistoryView implements Page {
 
 
     // ---------- Content ----------
-    private HBox buildFilterChips(Consumer<String> onFilter) {
+    private HBox buildFilterChips(Consumer<BodyPartFilter> onFilter) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER_LEFT);
         List<Button> chipButtons = new ArrayList<>();
 
-        for (String filter : FILTERS) {
-            Button chip = new Button(filter);
+        for (BodyPartFilter filter : BodyPartFilter.standard()) {
+            Button chip = new Button(filter.label());
             chip.setPadding(new Insets(6, 16, 6, 16));
-            applyChipStyle(chip, filter.equals("All"));
+            applyChipStyle(chip, filter.label().equals(activeFilter.label()));
             chip.setOnAction(e -> {
                 for (Button b : chipButtons) {
-                    applyChipStyle(b, b.getText().equals(filter));
+                    applyChipStyle(b, b.getText().equals(filter.label()));
                 }
                 onFilter.accept(filter);
             });
@@ -231,15 +219,6 @@ public class WorkoutHistoryView implements Page {
                     + " -fx-border-color: #E2E8F0; -fx-border-radius: 16; -fx-background-radius: 16;"
                     + " -fx-font-size: 13px;");
         }
-    }
-
-    public static List<Entry> filterByPart(List<Entry> entries, String part) {
-        if ("All".equals(part)) {
-            return new ArrayList<>(entries);
-        }
-        return entries.stream()
-                .filter(e -> e.getBodyPart().equals(part))
-                .collect(Collectors.toList());
     }
 
     private void renderSessions(List<Session> visible) {
@@ -553,68 +532,5 @@ public class WorkoutHistoryView implements Page {
             onChanged.run();
         });
         return button;
-    }
-
-    public static class Session {
-        private final Integer workoutId;
-        private String name;
-        private final String dateTitle;
-        private final List<Entry> entries;
-
-        public Session(Integer workoutId, String name, String dateTitle, List<Entry> entries) {
-            this.workoutId = workoutId;
-            this.name = name;
-            this.dateTitle = dateTitle;
-            this.entries = entries;
-        }
-
-        public Integer getWorkoutId() { return workoutId; }
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public String getDateTitle() { return dateTitle; }
-        public boolean hasName() { return name != null && !name.isBlank(); }
-        public String getDisplayTitle() { return hasName() ? name : dateTitle; }
-        public List<Entry> getEntries() { return entries; }
-
-        public int totalReps() {
-            return entries.stream().mapToInt(Entry::totalReps).sum();
-        }
-    }
-
-    public static class Entry {
-        private final Integer exerciseId;
-        private final String date;
-        private final String exercise;
-        private String sets;
-        private String reps;
-        private final String bodyPart;
-
-        public Entry(Integer exerciseId, String date, String exercise, String sets, String reps, String bodyPart) {
-            this.exerciseId = exerciseId;
-            this.date = date;
-            this.exercise = exercise;
-            this.sets = sets;
-            this.reps = reps;
-            this.bodyPart = bodyPart;
-        }
-
-        public Integer getExerciseId() { return exerciseId; }
-        public String getDate() { return date; }
-        public String getExercise() { return exercise; }
-        public String getSets() { return sets; }
-        public String getReps() { return reps; }
-        public String getBodyPart() { return bodyPart; }
-
-        public void setSets(String sets) { this.sets = sets; }
-        public void setReps(String reps) { this.reps = reps; }
-
-
-        public int totalReps() {
-            try {
-                return Integer.parseInt(sets.trim()) * Integer.parseInt(reps.trim());
-            } catch (NumberFormatException e) {
-                return 0;
-            }
-        }
     }
 }

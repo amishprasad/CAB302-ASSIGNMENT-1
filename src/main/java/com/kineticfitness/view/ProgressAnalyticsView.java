@@ -30,7 +30,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 
 /**
- * Progress & Analytics page: summarises real training volume, current body metrics, and
+ * Progress &amp; Analytics page: summarises real training volume, current body metrics, and
  * goal completion for the signed-in user. Data comes from {@link WorkoutDAO} (workouts
  * table) and the shared {@link LocalProfileStore} milestones list (the same store the
  * Goals page reads and writes, so both pages always agree). Implements {@link Page} so

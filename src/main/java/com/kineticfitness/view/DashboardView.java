@@ -120,8 +120,8 @@ public class DashboardView implements Page {
                 statCard("Workouts Logged", String.valueOf(workouts.size())),
                 statCard("This Week", thisWeek + " of " + store.weeklyWorkoutGoal),
                 statCard("Upcoming Sessions", String.valueOf(scheduled.size())),
-                statCard("Calories Today", today.getTotalCalories() + " kcal"));
-                statCard("Current Streak", streak + (streak == 1 ? " day" : " days"));
+                statCard("Calories Today", today.getTotalCalories() + " kcal"),
+                statCard("Current Streak", streak + (streak == 1 ? " day" : " days")));
 
         row.setAlignment(Pos.CENTER_LEFT);
         return row;
