@@ -1,5 +1,6 @@
 package com.kineticfitness.view;
 
+import com.kineticfitness.db.GoalNotesDAO;
 import com.kineticfitness.db.ProfileDAO;
 import com.kineticfitness.model.FitnessGoal;
 import com.kineticfitness.model.FitnessLevel;
@@ -39,12 +40,30 @@ public class GoalsView implements Page {
     private final StackPane container = new StackPane();
     private final LocalProfileStore store = LocalProfileStore.getInstance();
     private final ProfileDAO profileDAO = new ProfileDAO();
+    private final GoalNotesDAO goalNotesDAO = new GoalNotesDAO();
+
+    /** The signed-in account's username, or null when nobody is signed in. */
+    private String currentUsername() {
+        com.kineticfitness.model.User user = com.kineticfitness.session.UserSession.getCurrentUser();
+        return user == null ? null : user.getUsername();
+    }
 
     /** Persists the shared store against the signed-in account. */
     private void saveProfile() {
-        com.kineticfitness.model.User user = com.kineticfitness.session.UserSession.getCurrentUser();
-        if (user == null) return;
-        profileDAO.save(store, user.getUsername());
+        String username = currentUsername();
+        if (username == null) return;
+        profileDAO.save(store, username);
+        goalNotesDAO.save(username, store.goalNotes);
+    }
+
+    /**
+     * Reads the saved note into the store. The note has a table of its own, so it
+     * is loaded here rather than arriving with the rest of the profile.
+     */
+    private void loadNotes() {
+        String username = currentUsername();
+        if (username == null) return;
+        store.goalNotes = goalNotesDAO.load(username);
     }
 
     @Override
@@ -59,6 +78,7 @@ public class GoalsView implements Page {
     }
 
     private void refresh() {
+        loadNotes();
         if (!store.hasPersonalDetails()) {
             container.getChildren().setAll(buildNoProfilePrompt());
             return;
@@ -148,7 +168,10 @@ public class GoalsView implements Page {
         VBox targetWeightBlock = sectionBlock("Target Weight", "Your goal weight (kg)", targetWeightField);
 
         ComboBox<Integer> durationBox = new ComboBox<>();
-        for (int mins : new int[]{60, 90, 120, 150, 180, 240, 300}) durationBox.getItems().add(mins);
+        for (int hours = 1; hours <= GoalValidator.MAX_WEEKLY_HOURS; hours++)  {
+            durationBox.getItems().add(hours * 60);
+        }
+        durationBox.setVisibleRowCount(10);
         int storedDuration = store.weeklyExerciseDurationMinutes;
         boolean hasStoredDuration = hasGoals && storedDuration > 0;
         if (hasStoredDuration && !durationBox.getItems().contains(storedDuration)) {
@@ -159,7 +182,7 @@ public class GoalsView implements Page {
         durationBox.setMaxWidth(Double.MAX_VALUE);
         durationBox.setPrefHeight(38);
         durationBox.setConverter(new StringConverter<>() {
-            @Override public String toString(Integer n) { return n == null ? "" : n + " minutes"; }
+            @Override public String toString(Integer n) { return n == null ? "" : weeklyHoursText(n); }
             @Override public Integer fromString(String s) { return durationBox.getValue(); }
         });
         VBox durationBlock = sectionBlock("Weekly Exercise Duration", "Total time per week", durationBox);
@@ -233,6 +256,24 @@ public class GoalsView implements Page {
                 "Set when you created your profile \u2014 change it from the Profile page",
                 experienceRow);
 
+        // The user's own note. Optional, so it never blocks saving; only its
+        // length is a rule, and that rule lives in GoalValidator like the rest.
+        TextArea notesArea = new TextArea(store.goalNotes);
+        notesArea.setPromptText("Why this goal matters to you, how you plan to get there, "
+                + "anything you want to read back later.");
+        notesArea.setWrapText(true);
+        notesArea.setPrefRowCount(4);
+        notesArea.setStyle("-fx-font-size: 13px;");
+        Label notesCount = new Label();
+        notesCount.setStyle("-fx-font-size: 11px; -fx-text-fill: " + MUTED_COLOR + ";");
+        updateNotesCount(notesCount, notesArea.getText());
+        notesArea.textProperty().addListener((obs, was, isNow) -> updateNotesCount(notesCount, isNow));
+        HBox notesCountRow = new HBox(notesCount);
+        notesCountRow.setAlignment(Pos.CENTER_RIGHT);
+        VBox notesField = new VBox(4, notesArea, notesCountRow);
+        VBox notesBlock = sectionBlock("Your Notes",
+                "Optional \u2014 anything you want to remember about this goal", notesField);
+
         Separator divider = new Separator();
         VBox.setMargin(divider, new Insets(6, 0, 0, 0));
 
@@ -262,6 +303,7 @@ public class GoalsView implements Page {
                     experience,
                     hasSelection(typesRow),
                     hasSelection(daysRow),
+                    notesArea.getText(),
                     startDate);
 
             if (result.isInvalid()) {
@@ -281,7 +323,8 @@ public class GoalsView implements Page {
                     selectedLabels(daysRow),
                     startDate,
                     targetDatePicker.getValue(),
-                    null);
+                    null,
+                    notesArea.getText());
 
             ProfileGoalMapper.apply(goal, store);
             saveProfile();
@@ -297,7 +340,7 @@ public class GoalsView implements Page {
         buttonRow.setAlignment(Pos.CENTER_LEFT);
 
         card.getChildren().addAll(goalTypeBlock, row1, row2, typesBlock, daysBlock,
-                experienceBlock, divider, errorLabel, buttonRow);
+                experienceBlock, notesBlock, divider, errorLabel, buttonRow);
 
         ScrollPane scroller = new ScrollPane(page);
         scroller.setFitToWidth(true);
@@ -428,11 +471,16 @@ public class GoalsView implements Page {
         }
 
         details.getChildren().addAll(
-                detailRow("Weekly Exercise Duration", store.weeklyExerciseDurationMinutes + " minutes/week"),
+                detailRow("Weekly Exercise Duration",
+                        weeklyHoursText(store.weeklyExerciseDurationMinutes) + " per week"),
                 detailRow("Weekly Workout Goal", store.weeklyWorkoutGoal + " workouts per week"),
                 detailRow("Preferred Workout Types", joinOrDash(store.preferredWorkoutTypes)),
                 detailRow("Preferred Workout Days", joinOrDash(store.preferredWorkoutDays)),
                 detailRow("Experience Level", profileLevel().display()));
+
+        if (!store.goalNotes.isBlank()) {
+            details.getChildren().add(detailRow("Your Notes", store.goalNotes));
+        }
 
         HBox.setHgrow(details, Priority.ALWAYS);
 
@@ -456,7 +504,7 @@ public class GoalsView implements Page {
         HBox stats = new HBox(12,
                 statTile("🏋", formatWeight(store.targetWeightKg), "Target Weight"),
                 statTile("📅", String.valueOf(store.weeklyWorkoutGoal), "Workouts per Week"),
-                statTile("⏱", store.weeklyExerciseDurationMinutes + " mins", "per Week"));
+                statTile("⏱", weeklyHoursText(store.weeklyExerciseDurationMinutes), "per Week"));
         stats.setAlignment(Pos.CENTER);
 
         Label done = new Label("🏆  You did it!");
@@ -585,6 +633,10 @@ public class GoalsView implements Page {
     private void clearGoal() {
         ProfileGoalMapper.clearGoal(store);
         saveProfile();
+        String username = currentUsername();
+        if (username != null) {
+            goalNotesDAO.delete(username);
+        }
     }
 
     /** The saved goal as a domain object, or null when none is set. */
@@ -707,6 +759,30 @@ public class GoalsView implements Page {
         Label label = new Label(text);
         label.setStyle("-fx-font-size: 12px; -fx-text-fill: " + MUTED_COLOR + ";");
         return label;
+    }
+
+    /**
+     * A weekly exercise commitment written in hours. Minutes are what the database
+     * stores and what the goal carries; hours are what people actually think in, so
+     * the conversion is a display concern and lives here rather than in the value.
+     *
+     * <p>A whole number of hours drops the decimal ("2 hours"); anything else keeps
+     * one ("1.5 hours").</p>
+     */
+    private String weeklyHoursText(int minutes) {
+        String number = minutes % 60 == 0
+                ? String.valueOf(minutes / 60)
+                : String.format(java.util.Locale.ROOT, "%.1f", minutes / 60.0);
+        return number + (minutes == 60 ? " hour" : " hours");
+    }
+
+    /** Shows how much of the note allowance is left, and warns once it is spent. */
+    private void updateNotesCount(Label counter, String text) {
+        int used = text == null ? 0 : text.trim().length();
+        int max = FitnessGoal.MAX_NOTES_LENGTH;
+        counter.setText(used + " / " + max);
+        counter.setStyle("-fx-font-size: 11px; -fx-text-fill: "
+                + (used > max ? DANGER : MUTED_COLOR) + ";");
     }
 
     private HBox detailRow(String label, String value) {
