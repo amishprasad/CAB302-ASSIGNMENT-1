@@ -108,7 +108,7 @@ public class ProfileDetailsView implements Page {
     }
 
     private void refresh() {
-        if (store.hasPersonalDetails()) {
+        if (PersonalDetailsMapper.isComplete(store)) {
             container.getChildren().setAll(buildDetailsView());
         } else {
             container.getChildren().setAll(buildStep1());
