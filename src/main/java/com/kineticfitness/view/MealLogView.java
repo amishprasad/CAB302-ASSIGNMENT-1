@@ -3,17 +3,22 @@ package com.kineticfitness.view;
 import com.kineticfitness.model.DailyLog;
 import com.kineticfitness.model.LookupNutritionEstimator;
 import com.kineticfitness.model.Meal;
+import com.kineticfitness.model.MealValidator;
 import com.kineticfitness.model.NutritionEstimator;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 public class MealLogView implements Page {
 
@@ -47,7 +52,8 @@ public class MealLogView implements Page {
         Label title = new Label("Log a Meal");
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
 
-        Label subtitle = new Label("Type a meal name and press Estimate to fill in calories and macros.");
+        Label subtitle = new Label("Type a meal name and the calories and macros are filled in for you. "
+                + "Edit them if you like, then press Enter or Add Meal.");
         subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + SUBTITLE + ";");
 
         TextField nameField = new TextField();
@@ -60,58 +66,111 @@ public class MealLogView implements Page {
         carbsField.setPromptText("Carbs (g)");
         TextField fatsField = new TextField();
         fatsField.setPromptText("Fats (g)");
+        TextField[] valueFields = {caloriesField, proteinField, carbsField, fatsField};
 
         Label hintLabel = new Label();
         hintLabel.setStyle("-fx-text-fill: " + SUBTITLE + "; -fx-font-size: 12px;");
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: #DC2626; -fx-font-size: 12px;");
 
-        Button estimateButton = new Button("Estimate");
-        estimateButton.setStyle("-fx-background-color: white; -fx-text-fill: " + ORANGE + ";"
-                + " -fx-border-color: " + ORANGE + "; -fx-border-radius: 6; -fx-background-radius: 6;");
-        estimateButton.setOnAction(e -> estimator.estimate(nameField.getText()).ifPresentOrElse(est -> {
-            caloriesField.setText(String.valueOf(est.getCalories()));
-            proteinField.setText(String.valueOf(est.getProtein()));
-            carbsField.setText(String.valueOf(est.getCarbs()));
-            fatsField.setText(String.valueOf(est.getFats()));
-            hintLabel.setText("Estimated values filled in - edit them if needed.");
-        }, () -> hintLabel.setText("No estimate found - please enter the values manually.")));
-        nameField.setOnAction(e -> estimateButton.fire());
-
         Button addButton = new Button("Add Meal");
         addButton.setStyle("-fx-background-color: " + ORANGE + "; -fx-text-fill: white; -fx-font-weight: bold;"
                 + " -fx-background-radius: 6; -fx-padding: 8 20;");
-        addButton.setOnAction(e -> {
-            try {
-                String name = nameField.getText().trim();
-                int calories = Integer.parseInt(caloriesField.getText().trim());
-                double protein = Double.parseDouble(proteinField.getText().trim());
-                double carbs = Double.parseDouble(carbsField.getText().trim());
-                double fats = Double.parseDouble(fatsField.getText().trim());
+        addButton.setDisable(true);
 
-                if (name.isEmpty()) {
-                    errorLabel.setText("Meal name can't be empty.");
-                    return;
-                }
+        // filling = we are setting the fields from code; autoFilled = the values came from an estimate
+        boolean[] filling = {false};
+        boolean[] autoFilled = {false};
 
-                dailyLog.addMeal(new Meal(name, calories, protein, carbs, fats));
-                errorLabel.setText("");
-                hintLabel.setText("");
-                nameField.clear();
-                caloriesField.clear();
-                proteinField.clear();
-                carbsField.clear();
-                fatsField.clear();
-                refreshMealList();
-            } catch (NumberFormatException ex) {
-                errorLabel.setText("Calories/Protein/Carbs/Fats must be numbers.");
+        Runnable clearValues = () -> {
+            filling[0] = true;
+            for (TextField field : valueFields) {
+                field.clear();
             }
+            filling[0] = false;
+            autoFilled[0] = false;
+        };
+
+        // Enable "Add Meal" only when the input is valid; show a message once the user has started typing numbers.
+        Runnable updateAddState = () -> {
+            Optional<String> problem = MealValidator.validate(nameField.getText(), caloriesField.getText(),
+                    proteinField.getText(), carbsField.getText(), fatsField.getText());
+            addButton.setDisable(problem.isPresent());
+            boolean startedValues = false;
+            for (TextField field : valueFields) {
+                startedValues |= !field.getText().isBlank();
+            }
+            errorLabel.setText(problem.isPresent() && startedValues ? problem.get() : "");
+        };
+
+        // Look up an estimate for the typed name and fill the fields automatically.
+        Runnable autoEstimate = () -> {
+            String name = nameField.getText().trim();
+            if (name.isEmpty()) {
+                hintLabel.setText("");
+                return;
+            }
+            Optional<Meal> estimate = estimator.estimate(name);
+            if (estimate.isPresent()) {
+                Meal est = estimate.get();
+                filling[0] = true;
+                caloriesField.setText(String.valueOf(est.getCalories()));
+                proteinField.setText(String.valueOf(est.getProtein()));
+                carbsField.setText(String.valueOf(est.getCarbs()));
+                fatsField.setText(String.valueOf(est.getFats()));
+                filling[0] = false;
+                autoFilled[0] = true;
+                hintLabel.setText("Estimated values filled in - edit them if needed.");
+            } else {
+                if (autoFilled[0]) {
+                    clearValues.run(); // don't leave stale numbers from a shorter meal name
+                }
+                hintLabel.setText("No estimate found - enter the values yourself for a custom meal.");
+            }
+        };
+
+        nameField.textProperty().addListener((obs, oldText, newText) -> {
+            autoEstimate.run();
+            updateAddState.run();
+        });
+        nameField.setOnAction(e -> caloriesField.requestFocus());
+
+        for (TextField field : valueFields) {
+            field.textProperty().addListener((obs, oldText, newText) -> {
+                if (!filling[0]) {
+                    autoFilled[0] = false; // the user edited a value, so keep it
+                    if (hintLabel.getText().startsWith("Added")) {
+                        hintLabel.setText("");
+                    }
+                }
+                updateAddState.run();
+            });
+            field.setOnAction(e -> addButton.fire()); // Enter adds the meal (ignored while disabled)
+        }
+
+        addButton.setOnAction(e -> {
+            if (MealValidator.validate(nameField.getText(), caloriesField.getText(), proteinField.getText(),
+                    carbsField.getText(), fatsField.getText()).isPresent()) {
+                return;
+            }
+            String name = nameField.getText().trim();
+            dailyLog.addMeal(new Meal(name,
+                    Integer.parseInt(caloriesField.getText().trim()),
+                    Double.parseDouble(proteinField.getText().trim()),
+                    Double.parseDouble(carbsField.getText().trim()),
+                    Double.parseDouble(fatsField.getText().trim())));
+
+            clearValues.run();
+            nameField.clear();
+            hintLabel.setText("Added \"" + name + "\".");
+            nameField.requestFocus();
+            refreshMealList();
         });
 
         GridPane form = new GridPane();
         form.setHgap(10);
         form.setVgap(10);
-        form.addRow(0, new Label("Meal name"), new HBox(8, nameField, estimateButton));
+        form.addRow(0, new Label("Meal name"), nameField);
         form.addRow(1, new Label("Calories"), caloriesField);
         form.addRow(2, new Label("Protein (g)"), proteinField);
         form.addRow(3, new Label("Carbs (g)"), carbsField);
@@ -122,7 +181,10 @@ public class MealLogView implements Page {
         formCard.setStyle(CARD);
 
         mealListBox.setPadding(new Insets(10));
-        VBox listCard = new VBox(8, new Label("Today's Meals"), mealListBox, totalsLabel);
+        Label listTitle = new Label("Today's Meals");
+        listTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
+        totalsLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + TITLE + ";");
+        VBox listCard = new VBox(8, listTitle, mealListBox, totalsLabel);
         listCard.setPadding(new Insets(20));
         listCard.setStyle(CARD);
 
@@ -136,12 +198,41 @@ public class MealLogView implements Page {
 
     private void refreshMealList() {
         mealListBox.getChildren().clear();
-        for (Meal meal : dailyLog.getMeals()) {
-            mealListBox.getChildren().add(new HBox(20,
-                    new Label(meal.getName()),
-                    new Label(meal.getCalories() + " kcal")));
+
+        if (dailyLog.getMeals().isEmpty()) {
+            Label empty = new Label("No meals logged yet.");
+            empty.setStyle("-fx-text-fill: " + SUBTITLE + ";");
+            mealListBox.getChildren().add(empty);
         }
+
+        for (Meal meal : dailyLog.getMeals()) {
+            Label name = new Label(meal.getName());
+            name.setStyle("-fx-font-weight: bold;");
+            Label details = new Label(meal.getCalories() + " kcal   P " + grams(meal.getProtein())
+                    + "g   C " + grams(meal.getCarbs()) + "g   F " + grams(meal.getFats()) + "g");
+            details.setStyle("-fx-text-fill: " + SUBTITLE + ";");
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            Button remove = new Button("Remove");
+            remove.setStyle("-fx-background-color: white; -fx-text-fill: #DC2626; -fx-border-color: #DC2626;"
+                    + " -fx-border-radius: 6; -fx-background-radius: 6;");
+            remove.setOnAction(e -> {
+                dailyLog.removeMeal(meal);
+                refreshMealList();
+            });
+
+            HBox row = new HBox(12, name, details, spacer, remove);
+            row.setAlignment(Pos.CENTER_LEFT);
+            mealListBox.getChildren().add(row);
+        }
+
         totalsLabel.setText("Total: " + dailyLog.getTotalCalories() + " kcal, "
-                + dailyLog.getTotalProtein() + "g protein");
+                + grams(dailyLog.getTotalProtein()) + "g protein");
+    }
+
+    private static String grams(double value) {
+        return String.format("%.1f", value);
     }
 }
