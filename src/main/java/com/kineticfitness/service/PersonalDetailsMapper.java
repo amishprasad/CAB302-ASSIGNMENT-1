@@ -45,6 +45,21 @@ public final class PersonalDetailsMapper {
     }
 
     /**
+     * Whether the stored profile holds everything a {@link PersonalDetails} needs.
+     *
+     * <p>Deliberately defined as "the domain object can be built from it" rather
+     * than as its own list of checks. {@code LocalProfileStore.hasPersonalDetails()}
+     * answers true as soon as a date of birth is set, so a screen trusting that
+     * draws a profile with a blank name and a height of zero. Asking the model
+     * instead means this answer can never drift from what the model accepts.</p>
+     *
+     * <p>US-04 &mdash; Create a profile. US-05 &mdash; View and edit my profile.</p>
+     */
+    public static boolean isComplete(LocalProfileStore store) {
+        return toDetails(store).isPresent();
+    }
+
+    /**
      * Writes the details back onto the store, ready for {@code ProfileDAO.save}.
      *
      * @param seedExperienceLevel true on first creation, when the goals screen has

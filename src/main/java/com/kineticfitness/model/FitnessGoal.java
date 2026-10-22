@@ -171,6 +171,40 @@ public final class FitnessGoal {
         return !isAchieved() && today.isAfter(targetDate);
     }
 
+    /**
+     * How far through the goal's own span today is, from 0 on the start date to 1
+     * on the target date. Clamped at both ends, so a goal running past its target
+     * reports a full bar rather than something over one.
+     *
+     * @return a fraction between 0 and 1 inclusive
+     */
+    public double elapsedFraction(LocalDate today) {
+        long total = durationDays();
+        if (total <= 0) {
+            return 1.0;
+        }
+        long elapsed = ChronoUnit.DAYS.between(startDate, today);
+        if (elapsed <= 0) {
+            return 0.0;
+        }
+        if (elapsed >= total) {
+            return 1.0;
+        }
+        return (double) elapsed / total;
+    }
+
+    /**
+     * How much weight still separates the user from this target, in kilograms.
+     * Zero once the target is reached, which {@link GoalType} decides, so a goal
+     * that has been passed never reads as negative progress.
+     */
+    public double weightToGo(double currentWeightKg) {
+        if (currentWeightKg <= 0 || isReachedBy(currentWeightKg)) {
+            return 0;
+        }
+        return Math.abs(currentWeightKg - targetWeightKg);
+    }
+
     /** The whole span the user gave themselves, in days. */
     public long durationDays() {
         return ChronoUnit.DAYS.between(startDate, targetDate);

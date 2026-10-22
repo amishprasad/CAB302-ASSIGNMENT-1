@@ -58,6 +58,45 @@ class FitnessGoalTest {
     }
 
     @Test
+    void elapsedFractionRunsFromZeroAtTheStartToOneAtTheTarget() {
+        FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70);
+        assertEquals(0.0, g.elapsedFraction(START));
+        assertEquals(1.0, g.elapsedFraction(TARGET));
+    }
+
+    @Test
+    void elapsedFractionIsClampedOutsideTheGoalSpan() {
+        FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70);
+        assertEquals(0.0, g.elapsedFraction(START.minusDays(30)));
+        assertEquals(1.0, g.elapsedFraction(TARGET.plusDays(30)));
+    }
+
+    @Test
+    void elapsedFractionIsAboutHalfwayAtTheMidpoint() {
+        FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70);
+        LocalDate midpoint = START.plusDays(g.durationDays() / 2);
+        assertEquals(0.5, g.elapsedFraction(midpoint), 0.01);
+    }
+
+    @Test
+    void weightToGoIsTheGapWhileTheTargetIsUnmet() {
+        assertEquals(5.0, goal(GoalType.LOSE_WEIGHT, 70).weightToGo(75), 0.001);
+        assertEquals(10.0, goal(GoalType.GAIN_MUSCLE, 80).weightToGo(70), 0.001);
+    }
+
+    @Test
+    void weightToGoIsZeroOnceTheTargetIsReached() {
+        assertEquals(0.0, goal(GoalType.LOSE_WEIGHT, 70).weightToGo(70));
+        assertEquals(0.0, goal(GoalType.LOSE_WEIGHT, 70).weightToGo(68));
+        assertEquals(0.0, goal(GoalType.GAIN_MUSCLE, 80).weightToGo(82));
+    }
+
+    @Test
+    void weightToGoIsZeroWhenNoWeightHasBeenRecorded() {
+        assertEquals(0.0, goal(GoalType.LOSE_WEIGHT, 70).weightToGo(0));
+    }
+
+    @Test
     void loseWeightIsReachedAtOrBelowTarget() {
         FitnessGoal g = goal(GoalType.LOSE_WEIGHT, 70);
         assertTrue(g.isReachedBy(69.9));

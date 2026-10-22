@@ -3,6 +3,10 @@ package com.kineticfitness.view;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -18,14 +22,22 @@ import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.Locale;
 import com.kineticfitness.db.ProfileDAO;
+import com.kineticfitness.db.WorkoutDAO;
 import com.kineticfitness.model.FitnessLevel;
 import com.kineticfitness.model.Gender;
+import com.kineticfitness.model.Workout;
+import com.kineticfitness.model.WorkoutMetric;
 import com.kineticfitness.model.PersonalDetails;
 import com.kineticfitness.service.PersonalDetailsMapper;
 import com.kineticfitness.service.ProfileValidator;
 import com.kineticfitness.service.ValidationResult;
+import com.kineticfitness.util.BmiCalculator;
 import com.kineticfitness.db.UserDAO;
 import com.kineticfitness.session.UserSession;
+import com.kineticfitness.util.WorkoutStats;
+import java.time.DayOfWeek;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 public class ProfileDetailsView implements Page {
 
@@ -34,6 +46,14 @@ public class ProfileDetailsView implements Page {
     private static final String TITLE_COLOR = "#1E293B";
     private static final String MUTED_COLOR = "#64748B";
     private static final String PAGE_BG = "#F1F5F9";
+
+    private static final java.time.format.DateTimeFormatter DATE_FORMAT =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /** The week labels under the bar chart, e.g. "6 Oct". */
+    private static final DateTimeFormatter WEEK_LABEL = DateTimeFormatter.ofPattern("d MMM");
+
+    private final WorkoutDAO workoutDAO = new WorkoutDAO();
 
 
     private final StackPane container = new StackPane();
@@ -114,15 +134,29 @@ public class ProfileDetailsView implements Page {
         calendarCard.setMinWidth(360);
 
         page.getChildren().addAll(headerCard, bottomRow);
-        return page;
+
+        // The page is taller than the window once the stats card has a chart in
+        // it, so it scrolls rather than hiding whatever falls below the fold.
+        ScrollPane scroller = new ScrollPane(page);
+        scroller.setFitToWidth(true);
+        scroller.setStyle("-fx-background-color: transparent; -fx-background: " + PAGE_BG + ";");
+        return scroller;
     }
 
+    /** Accent colour per metric, so the two tabs are told apart at a glance. */
+    private static final java.util.Map<WorkoutMetric, String> METRIC_ACCENT = java.util.Map.of(
+            WorkoutMetric.REPS, "#3b82f6",
+            WorkoutMetric.SETS, "#ef4444");
+
     /**
-     * TODO: no real workout data is available to ProfileView yet. This
-     * shows the empty state (matching the reference design) until
-     * Log Workout / Workout History expose a way to read logged
-     * durations and reps from here — similar to how LocalProfileStore
-     * shares profile data across pages.
+     * Workout statistics for the signed-in user, read from {@link WorkoutDAO}.
+     *
+     * <p>The tabs are {@link WorkoutMetric}'s constants, and each one knows how to
+     * read itself off a workout and how to aggregate across many. This method
+     * never asks which metric is selected; it just asks the metric.</p>
+     *
+     * <p>There is no duration tab: a workout records its date and its exercises'
+     * sets and reps, and nothing in the app stores how long it took.</p>
      */
     private VBox buildWorkoutStatisticsCard() {
         VBox card = new VBox(4);
@@ -133,49 +167,205 @@ public class ProfileDetailsView implements Page {
         Label title = new Label("Workout Statistics");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
 
-        ToggleGroup tabGroup = new ToggleGroup();
-        ToggleButton durationTab = new ToggleButton("Duration");
-        ToggleButton repsTab = new ToggleButton("Reps");
-        durationTab.setToggleGroup(tabGroup);
-        repsTab.setToggleGroup(tabGroup);
-        durationTab.setSelected(true);
-        styleStatTab(durationTab, true);
-        styleStatTab(repsTab, false);
-        durationTab.selectedProperty().addListener((o, was, isNow) -> styleStatTab(durationTab, isNow));
-        repsTab.selectedProperty().addListener((o, was, isNow) -> styleStatTab(repsTab, isNow));
+        VBox body = new VBox(16);
 
-        ComboBox<String> rangeBox = new ComboBox<>();
-        rangeBox.getItems().addAll("Last 12 weeks", "Last 4 weeks", "Last 6 months");
-        rangeBox.setValue("Last 12 weeks");
+        ComboBox<Integer> rangeBox = new ComboBox<>();
+        rangeBox.getItems().addAll(4, 12, 26);
+        rangeBox.setValue(12);
+        rangeBox.setConverter(new StringConverter<>() {
+            @Override public String toString(Integer weeks) {
+                return weeks == null ? "" : "Last " + weeks + " weeks";
+            }
+            @Override public Integer fromString(String text) {
+                return rangeBox.getValue();
+            }
+        });
 
-        Region tabSpacer = new Region();
-        HBox.setHgrow(tabSpacer, Priority.ALWAYS);
-        HBox tabsRow = new HBox(8, durationTab, repsTab, tabSpacer, rangeBox);
-        tabsRow.setAlignment(Pos.CENTER_LEFT);
-        VBox.setMargin(tabsRow, new Insets(12, 0, 20, 0));
+        ToggleGroup tabs = new ToggleGroup();
+        HBox tabRow = new HBox(8);
+        for (WorkoutMetric metric : WorkoutMetric.values()) {
+            ToggleButton tab = new ToggleButton(metric.tabLabel());
+            tab.setUserData(metric);
+            tab.setToggleGroup(tabs);
+            styleMetricTab(tab, metric == WorkoutMetric.values()[0]);
+            tab.selectedProperty().addListener((o, was, isNow) -> styleMetricTab(tab, isNow));
+            if (metric == WorkoutMetric.values()[0]) {
+                tab.setSelected(true);
+            }
+            tabRow.getChildren().add(tab);
+        }
 
-        Label bigStat = new Label("0 min");
-        bigStat.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
-        Label bigStatCaption = new Label("This week");
-        bigStatCaption.setStyle("-fx-font-size: 13px; -fx-text-fill: " + MUTED_COLOR + ";");
-        HBox bigStatRow = new HBox(10, bigStat, bigStatCaption);
-        bigStatRow.setAlignment(Pos.BASELINE_LEFT);
-        VBox.setMargin(bigStatRow, new Insets(0, 0, 16, 0));
+        Runnable render = () -> {
+            Toggle picked = tabs.getSelectedToggle();
+            WorkoutMetric metric = picked == null
+                    ? WorkoutMetric.values()[0]
+                    : (WorkoutMetric) picked.getUserData();
+            renderWorkoutStats(body, metric, rangeBox.getValue());
+        };
 
-        VBox emptyState = new VBox();
-        emptyState.setAlignment(Pos.CENTER);
-        emptyState.setPrefHeight(220);
-        emptyState.setStyle("-fx-background-color: " + PAGE_BG + "; -fx-background-radius: 8; "
-                + "-fx-border-color: #e2e8f0; -fx-border-style: dashed; -fx-border-radius: 8;");
-        Label emptyLabel = new Label("No workout data yet");
-        emptyLabel.setStyle("-fx-text-fill: " + MUTED_COLOR + "; -fx-font-size: 13px;");
-        emptyState.getChildren().add(emptyLabel);
+        tabs.selectedToggleProperty().addListener((o, was, isNow) -> {
+            if (isNow == null) {
+                was.setSelected(true);
+            } else {
+                render.run();
+            }
+        });
+        rangeBox.valueProperty().addListener((o, was, isNow) -> render.run());
 
-        card.getChildren().addAll(title, tabsRow, bigStatRow, emptyState);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox headerRow = new HBox(8, tabRow, spacer, rangeBox);
+        headerRow.setAlignment(Pos.CENTER_LEFT);
+        VBox.setMargin(headerRow, new Insets(10, 0, 18, 0));
+
+        render.run();
+
+        card.getChildren().addAll(title, headerRow, body);
         return card;
     }
 
-    private void styleStatTab(ToggleButton tab, boolean selected) {
+    /** Fills the card's body for one metric and window. Re-run whenever either changes. */
+    private void renderWorkoutStats(VBox body, WorkoutMetric metric, int weeks) {
+        List<Workout> workouts = workoutsInWindow(weeks);
+
+        if (workouts.isEmpty()) {
+            body.getChildren().setAll(emptyWorkoutState());
+            return;
+        }
+
+        String accent = METRIC_ACCENT.get(metric);
+        String label = metric.tabLabel();
+
+        HBox tiles = new HBox(16,
+                workoutTile(String.valueOf(metric.totalAcross(workouts)),
+                        "Total " + label, accent),
+                workoutTile(String.valueOf(metric.averageAcross(workouts)),
+                        "Average " + label + " per Workout", accent),
+                workoutTile(String.valueOf(metric.highestIn(workouts)),
+                        "Most " + label + " in One Workout", accent));
+        for (Node tile : tiles.getChildren()) {
+            HBox.setHgrow(tile, Priority.ALWAYS);
+        }
+
+        body.getChildren().setAll(
+                tiles,
+                weeklyWorkoutGoalBar(),
+                metricPerWeekChart(workouts, metric, weeks, accent));
+    }
+
+    /** The signed-in user's workouts inside the chosen window. */
+    private List<Workout> workoutsInWindow(int weeks) {
+        com.kineticfitness.model.User user = UserSession.getCurrentUser();
+        if (user == null) {
+            return List.of();
+        }
+        LocalDate firstMonday = LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(weeks - 1L);
+        return workoutDAO.findAllByUsername(user.getUsername()).stream()
+                .filter(w -> w.getDate() != null && !w.getDate().isBefore(firstMonday))
+                .toList();
+    }
+
+    /**
+     * This week's sessions against the weekly workout goal set on the Goals page.
+     * Both figures are real: the count from {@link WorkoutStats#sessionsThisWeek},
+     * the target from the saved goal.
+     */
+    private VBox weeklyWorkoutGoalBar() {
+        List<LocalDate> dates = workoutsInWindow(1).stream().map(Workout::getDate).toList();
+        int done = WorkoutStats.sessionsThisWeek(dates, LocalDate.now());
+        int target = Math.max(1, store.weeklyWorkoutGoal);
+        int percent = WorkoutStats.percentOf(done, target);
+
+        Label heading = new Label("Weekly Workout Goal");
+        heading.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+
+        Label percentLabel = new Label(percent + "%");
+        percentLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + ACCENT + ";");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox top = new HBox(heading, spacer, percentLabel);
+        top.setAlignment(Pos.CENTER_LEFT);
+
+        ProgressBar bar = new ProgressBar(Math.min(1.0, percent / 100.0));
+        bar.setMaxWidth(Double.MAX_VALUE);
+        bar.setPrefHeight(12);
+        bar.setStyle("-fx-accent: " + ACCENT + ";");
+
+        int left = Math.max(0, target - done);
+        Label detail = new Label(done + " of " + target + " workouts   ·   "
+                + (left == 0 ? "goal met" : left + " to go"));
+        detail.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+
+        VBox box = new VBox(8, top, bar, detail);
+        box.setPadding(new Insets(16, 18, 16, 18));
+        box.setStyle("-fx-background-color: " + ACCENT_BG + "; -fx-background-radius: 8;");
+        return box;
+    }
+
+    /** One bar per calendar week, bucketed by the team's {@link WorkoutStats}. */
+    private VBox metricPerWeekChart(List<Workout> workouts, WorkoutMetric metric,
+                                    int weeks, String accent) {
+        List<WorkoutStats.DayVolume> days = workouts.stream()
+                .map(w -> new WorkoutStats.DayVolume(w.getDate(), metric.of(w)))
+                .toList();
+        List<WorkoutStats.WeekBucket> buckets =
+                WorkoutStats.weeklyBuckets(days, LocalDate.now(), weeks);
+
+        CategoryAxis xAxis = new CategoryAxis();
+        NumberAxis yAxis = new NumberAxis();
+        yAxis.setLabel(metric.tabLabel());
+
+        BarChart<String, Number> chart = new BarChart<>(xAxis, yAxis);
+        chart.setLegendVisible(false);
+        chart.setAnimated(false);
+        chart.setPrefHeight(260);
+        chart.setCategoryGap(10);
+
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        for (WorkoutStats.WeekBucket bucket : buckets) {
+            series.getData().add(new XYChart.Data<>(
+                    bucket.weekStart().format(WEEK_LABEL), bucket.totalReps()));
+        }
+        chart.getData().add(series);
+        for (XYChart.Data<String, Number> point : series.getData()) {
+            if (point.getNode() != null) {
+                point.getNode().setStyle("-fx-bar-fill: " + accent + ";");
+            }
+        }
+
+        Label heading = new Label(metric.tabLabel() + " per Week");
+        heading.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+
+        VBox box = new VBox(8, heading, chart);
+        box.setPadding(new Insets(16, 12, 8, 12));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 8; "
+                + "-fx-border-color: #e2e8f0; -fx-border-radius: 8;");
+        return box;
+    }
+
+    /** One of the three figures across the top of the card. */
+    private VBox workoutTile(String value, String caption, String accent) {
+        Label dot = new Label("●");
+        dot.setStyle("-fx-font-size: 14px; -fx-text-fill: " + accent + ";");
+
+        Label valueLabel = new Label(value);
+        valueLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: " + TITLE_COLOR + ";");
+
+        Label captionLabel = new Label(caption);
+        captionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + MUTED_COLOR + ";");
+        captionLabel.setWrapText(true);
+        captionLabel.setAlignment(Pos.CENTER);
+
+        VBox tile = new VBox(4, dot, valueLabel, captionLabel);
+        tile.setAlignment(Pos.CENTER);
+        tile.setPadding(new Insets(18, 12, 18, 12));
+        tile.setMaxWidth(Double.MAX_VALUE);
+        tile.setStyle("-fx-background-color: " + PAGE_BG + "; -fx-background-radius: 10;");
+        return tile;
+    }
+
+    private void styleMetricTab(ToggleButton tab, boolean selected) {
         if (selected) {
             tab.setStyle("-fx-background-color: transparent; -fx-text-fill: " + ACCENT
                     + "; -fx-font-weight: bold; -fx-border-color: transparent transparent " + ACCENT
@@ -184,6 +374,20 @@ public class ProfileDetailsView implements Page {
             tab.setStyle("-fx-background-color: transparent; -fx-text-fill: " + MUTED_COLOR
                     + "; -fx-border-color: transparent; -fx-background-radius: 0;");
         }
+    }
+
+    private VBox emptyWorkoutState() {
+        VBox emptyState = new VBox(6);
+        emptyState.setAlignment(Pos.CENTER);
+        emptyState.setPrefHeight(220);
+        emptyState.setStyle("-fx-background-color: " + PAGE_BG + "; -fx-background-radius: 8; "
+                + "-fx-border-color: #e2e8f0; -fx-border-style: dashed; -fx-border-radius: 8;");
+        Label emptyLabel = new Label("No workouts logged in this period");
+        emptyLabel.setStyle("-fx-text-fill: " + MUTED_COLOR + "; -fx-font-size: 13px;");
+        Label hint = new Label("Log one on the Log Workout page and it will appear here.");
+        hint.setStyle("-fx-text-fill: " + MUTED_COLOR + "; -fx-font-size: 11px;");
+        emptyState.getChildren().addAll(emptyLabel, hint);
+        return emptyState;
     }
 
     private VBox buildCalendarCard() {
@@ -314,7 +518,7 @@ public class ProfileDetailsView implements Page {
         HBox personalStatsRow = new HBox(32,
                 statColumn("Email", store.email.isEmpty() ? "-" : store.email),
                 statColumn("Gender", store.gender != null ? store.gender.display : "-"),
-                statColumn("Date of Birth", store.dateOfBirth != null ? store.dateOfBirth.toString() : "DD/MM/YYYY"),
+                statColumn("Date of Birth", dateOfBirthText()),
                 statColumn("Height", String.format("%.0f cm", store.heightCm)),
                 statColumn("Weight", String.format("%.0f kg", store.weightKg)),
                 statColumn("Fitness Level", levelLabel())
@@ -326,10 +530,14 @@ public class ProfileDetailsView implements Page {
         // TODO: Workouts / This week come from workout-logging data owned
         // by another page (Log Workout / Workout History). Wired to 0 for
         // now until that data is available to read from here.
+        // Only figures this page can actually work out. Workout counts live on the
+        // Log Workout and Workout History pages and are not readable from here, and
+        // a hardcoded zero reads as a real number rather than an absent one.
         HBox activityStatsRow = new HBox(40,
-                statColumn("Workouts", "0"),
-                statColumn("This week", "0 min")
+                bmiColumn(),
+                statColumn("Age", String.valueOf(calculatedAge()))
         );
+        activityStatsRow.setAlignment(Pos.CENTER_RIGHT);
 
         VBox rightSide = new VBox(personalStatsRow, divider, activityStatsRow);
         rightSide.setAlignment(Pos.TOP_RIGHT);
@@ -345,6 +553,37 @@ public class ProfileDetailsView implements Page {
 
         card.getChildren().add(headerRow);
         return card;
+    }
+
+    /** The date of birth as the page's placeholder promises it: dd/MM/yyyy. */
+    private String dateOfBirthText() {
+        return store.dateOfBirth == null ? "DD/MM/YYYY" : store.dateOfBirth.format(DATE_FORMAT);
+    }
+
+    /**
+     * BMI and its category, both asked of {@link PersonalDetails} rather than
+     * worked out here. An incomplete profile reports zero, which
+     * {@link BmiCalculator} already renders as "Unknown" in grey, so there is no
+     * special case to write.
+     */
+    private VBox bmiColumn() {
+        double bmi = PersonalDetailsMapper.toDetails(store).map(PersonalDetails::bmi).orElse(0.0);
+        String category = BmiCalculator.category(bmi);
+
+        Label labelNode = new Label("BMI");
+        labelNode.setStyle("-fx-font-size: 12px; -fx-text-fill: " + MUTED_COLOR + ";");
+
+        Label valueNode = new Label(bmi <= 0 ? "\u2014" : String.format(Locale.ROOT, "%.1f", bmi));
+        valueNode.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: "
+                + BmiCalculator.categoryColour(bmi) + ";");
+
+        Label categoryNode = new Label(category);
+        categoryNode.setStyle("-fx-font-size: 11px; -fx-text-fill: "
+                + BmiCalculator.categoryColour(bmi) + ";");
+
+        VBox col = new VBox(2, labelNode, valueNode, categoryNode);
+        col.setAlignment(Pos.CENTER_RIGHT);
+        return col;
     }
 
     private VBox statColumn(String label, String value) {
