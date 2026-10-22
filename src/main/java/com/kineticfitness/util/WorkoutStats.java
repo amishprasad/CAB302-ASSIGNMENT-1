@@ -2,13 +2,13 @@ package com.kineticfitness.util;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -19,19 +19,40 @@ import java.util.Set;
  */
 public final class WorkoutStats {
 
+    /** Utility class; not meant to be instantiated. */
     private WorkoutStats() {
     }
 
-    /** One exercise as logged: the session it belongs to, and the reps it contributed. */
+    /**
+     * One exercise as logged: the session it belongs to, and the reps it contributed.
+     *
+     * @param date      the session date, formatted for display
+     * @param totalReps sets × reps for this exercise
+     */
     public record Sample(String date, int totalReps) {}
 
-    /** One whole session: every exercise on that date, added up. Becomes one bar on a chart. */
+    /**
+     * One whole session: every exercise on that date, added up. Becomes one bar on a chart.
+     *
+     * @param date      the session date, formatted for display
+     * @param totalReps total reps across the session
+     */
     public record DatedVolume(String date, int totalReps) {}
 
-    /** One day's total reps, with a real date so no string parsing is needed. */
+    /**
+     * One day's total reps, with a real date so no string parsing is needed.
+     *
+     * @param date      the day
+     * @param totalReps total reps logged that day
+     */
     public record DayVolume(LocalDate date, int totalReps) {}
 
-    /** One calendar week (Monday start) and the reps logged in it. */
+    /**
+     * One calendar week (Monday start) and the reps logged in it.
+     *
+     * @param weekStart the Monday that starts the week
+     * @param totalReps total reps logged that week
+     */
     public record WeekBucket(LocalDate weekStart, int totalReps) {}
 
     /**
@@ -40,6 +61,10 @@ public final class WorkoutStats {
      * <p>Samples arrive newest-first (WorkoutDAO sorts by id descending). The result is
      * flipped to oldest-first so a chart reads left to right, then trimmed to the most
      * recent {@code limit} sessions so the bars stay wide enough to read.
+     *
+     * @param samples one entry per logged exercise, newest first
+     * @param limit   the maximum number of sessions to return; 0 or less means no limit
+     * @return one entry per session, oldest first
      */
     public static List<DatedVolume> volumeByDate(List<Sample> samples, int limit) {
         Map<String, Integer> totals = new LinkedHashMap<>();
@@ -65,6 +90,10 @@ public final class WorkoutStats {
      *
      * <p>{@code today} is a parameter rather than being read from the clock inside, so a
      * test can pin it to a known date instead of behaving differently on a Sunday.
+     *
+     * @param dates the dates of logged sessions; null entries are ignored
+     * @param today the date to treat as today
+     * @return the number of sessions in the current week
      */
     public static int sessionsThisWeek(List<LocalDate> dates, LocalDate today) {
         LocalDate monday = today.with(DayOfWeek.MONDAY);
@@ -82,6 +111,10 @@ public final class WorkoutStats {
     /**
      * Progress towards a target as a percentage, capped at 100 and never negative.
      * A target of zero or less returns 0 rather than dividing by zero.
+     *
+     * @param current the amount achieved so far
+     * @param target  the goal amount
+     * @return a percentage from 0 to 100
      */
     public static int percentOf(double current, double target) {
         if (target <= 0) {
@@ -98,6 +131,10 @@ public final class WorkoutStats {
      * workout, because the user can still train today. Anything older returns 0, so a
      * workout three weeks ago no longer shows a "current streak". Duplicate dates count
      * once; null and future dates are ignored.
+     *
+     * @param dates the dates of logged workouts
+     * @param today the date to treat as today
+     * @return the current streak in days, or 0 if there is none
      */
     public static int currentStreak(List<LocalDate> dates, LocalDate today) {
         Set<LocalDate> days = new HashSet<>();
@@ -121,6 +158,11 @@ public final class WorkoutStats {
      * oldest first, ending with the week containing {@code today}. Every week gets a
      * bucket, even with zero reps, so the chart has no gaps. Days outside the window
      * are ignored.
+     *
+     * @param days  daily rep totals; null entries are ignored
+     * @param today
+     * @param weeks how many weeks to include; 0 or less returns an empty list
+     * @return one bucket per week, oldest first
      */
     public static List<WeekBucket> weeklyBuckets(List<DayVolume> days, LocalDate today, int weeks) {
         List<WeekBucket> buckets = new ArrayList<>();

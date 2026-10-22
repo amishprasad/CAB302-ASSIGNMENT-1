@@ -25,6 +25,7 @@ final class VolumeChart {
      * @param height    preferred height in pixels — the Dashboard uses a shorter chart
      *                  than the full Workout History page
      * @param axisLabel text down the y-axis, or null for none
+     * @return a styled, empty bar chart
      */
     static BarChart<String, Number> create(double height, String axisLabel) {
         CategoryAxis xAxis = new CategoryAxis();
@@ -41,7 +42,12 @@ final class VolumeChart {
         return chart;
     }
 
-    /** Replaces whatever the chart is showing with one orange bar per session. */
+    /**
+     * Replaces whatever the chart is showing with one orange bar per session.
+     *
+     * @param chart   the chart to fill, from {@link #create}
+     * @param volumes one entry per session, oldest first; an empty list clears the chart
+     */
     static void plot(BarChart<String, Number> chart, List<DatedVolume> volumes) {
         chart.getData().clear();
         if (volumes.isEmpty()) {
@@ -61,4 +67,5 @@ final class VolumeChart {
         }
         chart.getData().add(series);
     }
+
 }

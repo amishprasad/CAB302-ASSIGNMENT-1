@@ -15,6 +15,13 @@ import javafx.scene.layout.VBox;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The Exercise Library page: browse every exercise in the app, filtered by body part.
+ *
+ * <p>Exercises come from {@link ExerciseCatalog}; each card shows the name, body part,
+ * a short description, and the muscles worked. Clicking a filter chip re-renders
+ * the list without rebuilding the whole page.
+ */
 
 public class ExerciseSelectionView implements Page {
 
@@ -26,11 +33,21 @@ public class ExerciseSelectionView implements Page {
     private final VBox exerciseListContainer = new VBox(10);
     private final List<Button> chipButtons = new ArrayList<>();
 
+    /**
+     * Returns the name shown in the sidebar.
+     *
+     * @return "Exercise Library"
+     */
     @Override
     public String label() {
         return "Exercise Library";
     }
 
+    /**
+     * Builds the page: title, filter chips, and the full exercise list.
+     *
+     * @return the page content, wrapped in a scroll pane
+     */
     @Override
     public Node getContent() {
         Label title = new Label("Exercise Library");
