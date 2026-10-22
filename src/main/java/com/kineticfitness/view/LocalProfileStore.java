@@ -49,6 +49,8 @@ public class LocalProfileStore {
     public LocalDate goalTargetDate = null;
     /** Set when the goal is completed; null while it is still active. */
     public LocalDate goalAchievedDate = null;
+    /** A free-text note the user attached to their goal. Never null. */
+    public String goalNotes = "";
 
     /**
      * Resets every field to its default. Called when a user signs in or out, so one
@@ -73,6 +75,7 @@ public class LocalProfileStore {
         goalStartDate = null;
         goalTargetDate = null;
         goalAchievedDate = null;
+        goalNotes = "";
         milestones.clear();
         unitSystem = UnitSystem.METRIC;
         notifyWorkoutReminders = true;

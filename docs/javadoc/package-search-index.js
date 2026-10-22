@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html","k":"18"},{"m":"com.kineticfitness","l":"com.kineticfitness"},{"m":"com.kineticfitness","l":"com.kineticfitness.model"},{"m":"com.kineticfitness","l":"com.kineticfitness.service"},{"m":"com.kineticfitness","l":"com.kineticfitness.view"}];updateSearchResults();

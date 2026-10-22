@@ -15,12 +15,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Saves a workout and every one of its exercises for the given user.
- * The user must already exist in the users table
- **/
-
+ * Saves, loads, updates and deletes workouts and their exercises in the SQLite database.
+ *
+ * <p>Follows the DAO (Data Access Object) pattern: all SQL for the {@code workouts}
+ * and {@code exercises} tables lives here, so the screens never touch the database
+ * directly. Multi-step writes run inside a single transaction, so a failure part-way
+ * through leaves the database unchanged.
+ */
 public class WorkoutDAO {
 
+    /**
+     * Saves a workout and every one of its exercises for the given user, in one transaction.
+     * The user must already exist in the users table.
+     *
+     * @param user    the user the workout belongs to
+     * @param workout the workout to save, including its exercises
+     * @throws DataAccessException if the workout or any exercise cannot be saved
+     */
     public void save(User user, Workout workout) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = """
@@ -96,6 +107,12 @@ public class WorkoutDAO {
         }
     }
 
+    /**
+     * Loads every workout a user has logged, with its exercises, newest first.
+     *
+     * @param username the user whose workouts to load
+     * @return the user's workouts, or an empty list if none or if loading fails
+     */
     public List<Workout> findAllByUsername(String username) {
         List<Workout> workouts = new ArrayList<>();
         Connection connection = DatabaseConnection.getInstance();
@@ -148,6 +165,13 @@ public class WorkoutDAO {
         return exercises;
     }
 
+    /**
+     * Changes the sets and reps of a logged exercise.
+     *
+     * @param exerciseId the id of the exercise to update
+     * @param sets       the new number of sets
+     * @param reps       the new number of reps
+     */
     public void updateExercise(int exerciseId, int sets, int reps) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "UPDATE exercises SET sets = ?, reps = ? WHERE id = ?";
@@ -161,6 +185,12 @@ public class WorkoutDAO {
         }
     }
 
+    /**
+     * Renames a workout session.
+     *
+     * @param workoutId the id of the workout to rename
+     * @param name      the new name, or {@code null} to clear it
+     */
     public void updateWorkoutName(int workoutId, String name) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "UPDATE workouts SET name = ? WHERE id = ?";
@@ -177,6 +207,11 @@ public class WorkoutDAO {
         }
     }
 
+    /**
+     * Deletes one exercise from a logged workout.
+     *
+     * @param exerciseId the id of the exercise to delete
+     */
     public void deleteExercise(int exerciseId) {
         Connection connection = DatabaseConnection.getInstance();
         String sql = "DELETE FROM exercises WHERE id = ?";
@@ -188,9 +223,14 @@ public class WorkoutDAO {
         }
     }
 
-    /** Used by the Settings page's "Clear All Data" action. Deletes every workout and
-     *  exercise belonging to the given user. Does not touch their account, goals (those
-     *  live in LocalProfileStore, not the database), or scheduled workouts. */
+    /**
+     * Deletes every workout and exercise belonging to the given user, in one transaction.
+     * Used by the Settings page's "Clear All Data" action. Does not touch their account,
+     * goals (those live in LocalProfileStore, not the database), or scheduled workouts.
+     *
+     * @param username the user whose workout data to delete
+     * @throws DataAccessException if the data cannot be deleted
+     */
     public void deleteAllForUser(String username) {
         Connection connection = DatabaseConnection.getInstance();
         String deleteExercises = """
@@ -212,7 +252,13 @@ public class WorkoutDAO {
         });
     }
 
-    /** Adds the name column to a workouts table created before sessions could be named. */
+    /**
+     * Adds the name column to a workouts table created before sessions could be named.
+     * Safe to run on every startup; does nothing if the column already exists.
+     *
+     * @param connection the open database connection
+     * @throws SQLException if the table cannot be inspected or altered
+     */
     public static void migrate(Connection connection) throws SQLException {
         boolean hasName = false;
         try (Statement statement = connection.createStatement();
